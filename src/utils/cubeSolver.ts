@@ -4,9 +4,115 @@ export class CubeSolver {
   private state: CubeState;
   private solution: Move[] = [];
   private cornerAttempts: number = 0;
+  private currentStep: number = 0;
+  private solveSteps = [
+    {
+      id: 'white-cross',
+      name: 'White Cross',
+      description: 'Create a white cross on the top face by aligning white edge pieces with their center colors.',
+      tips: [
+        'Find white edge pieces anywhere on the cube',
+        'Position them on the top face forming a cross',
+        'Make sure the edge colors match their adjacent center colors',
+        'Common moves: F, U, R, U\', L\'',
+      ]
+    },
+    {
+      id: 'white-corners',
+      name: 'White Corners',
+      description: 'Place the white corner pieces in their correct positions on the top layer.',
+      tips: [
+        'Find white corner pieces',
+        'Position them under their target location',
+        'Use R U R\' U\' repeatedly if needed',
+        'Check that corner colors match adjacent centers',
+      ]
+    },
+    {
+      id: 'middle-layer',
+      name: 'Middle Layer',
+      description: 'Solve the middle layer by inserting edge pieces in their correct positions.',
+      tips: [
+        'Find edge pieces without yellow',
+        'Position the edge on top matching one center color',
+        'For right insertion: U R U\' R\' U\' F\' U F',
+        'For left insertion: U\' L\' U L U F U\' F\'',
+      ]
+    },
+    {
+      id: 'yellow-cross',
+      name: 'Yellow Cross',
+      description: 'Create a yellow cross on the bottom face.',
+      tips: [
+        'Hold yellow center on bottom',
+        'If no yellow edges: F R U R\' U\' F\'',
+        'For "L" shape: F R U R\' U\' F\'',
+        'For line: F R U R\' U\' F\' twice',
+      ]
+    },
+    {
+      id: 'yellow-corners',
+      name: 'Yellow Corners',
+      description: 'Position yellow corners in their correct spots (not necessarily oriented).',
+      tips: [
+        'Look for correctly positioned yellow corners',
+        'Hold cube with yellow on bottom',
+        'Use: R U R\' U R U2 R\'',
+        'Repeat algorithm until corners are in right spots',
+      ]
+    },
+    {
+      id: 'orient-corners',
+      name: 'Orient Yellow Corners',
+      description: 'Orient the yellow corners to complete the cube.',
+      tips: [
+        'Keep yellow on bottom',
+        'For each corner: R U R\' U\' (repeat until corner solved)',
+        'Move to next corner with U',
+        'Repeat for all corners',
+      ]
+    }
+  ];
 
   constructor(initialState: CubeState) {
     this.state = { ...initialState };
+    this.currentStep = 0;
+  }
+
+  getCurrentStep() {
+    return this.solveSteps[this.currentStep];
+  }
+
+  getNextStep() {
+    if (this.currentStep < this.solveSteps.length - 1) {
+      this.currentStep++;
+      return this.solveSteps[this.currentStep];
+    }
+    return null;
+  }
+
+  getPreviousStep() {
+    if (this.currentStep > 0) {
+      this.currentStep--;
+      return this.solveSteps[this.currentStep];
+    }
+    return null;
+  }
+
+  getTotalSteps() {
+    return this.solveSteps.length;
+  }
+
+  getCurrentProgress() {
+    return {
+      currentStep: this.currentStep + 1,
+      totalSteps: this.solveSteps.length,
+      stepInfo: this.solveSteps[this.currentStep]
+    };
+  }
+
+  resetProgress() {
+    this.currentStep = 0;
   }
 
   solve(): Move[] {
