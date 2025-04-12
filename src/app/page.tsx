@@ -10,10 +10,6 @@ import { solveCube } from '../utils/cubeSolver';
 export default function Home() {
   const [selectedColor, setSelectedColor] = useState<Color>('W');
   const [cubeState, setCubeState] = useState<CubeState>({
-    // Initialize with standard color orientation:
-    // White on top (U), Yellow on bottom (D)
-    // Red on right (R), Orange on left (L)
-    // Green on front (F), Blue on back (B)
     U: Array(9).fill('W'),  // White on top
     D: Array(9).fill('Y'),  // Yellow on bottom
     F: Array(9).fill('G'),  // Green on front
@@ -21,7 +17,7 @@ export default function Home() {
     L: Array(9).fill('O'),  // Orange on left
     R: Array(9).fill('R')   // Red on right
   });
-  const [solution, setSolution] = useState<string[]>([]);
+  const [solution, setSolution] = useState<Move[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleColorSelect = (color: Color) => {

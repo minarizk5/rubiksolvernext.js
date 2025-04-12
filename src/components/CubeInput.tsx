@@ -5,8 +5,6 @@ interface CubeInputProps {
   onCellClick: (face: Face, index: number) => void;
 }
 
-const FACES: Face[] = ['U', 'L', 'F', 'R', 'B', 'D'];
-
 export default function CubeInput({ cubeState, onCellClick }: CubeInputProps) {
   const renderFace = (face: Face) => (
     <div className="face-input">

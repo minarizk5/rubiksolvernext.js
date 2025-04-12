@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Move } from '@/types/cube';
 
 interface SolutionDisplayProps {
-  moves: string[];
+  moves: Move[];
 }
 
 export default function SolutionDisplay({ moves }: SolutionDisplayProps) {
@@ -96,20 +96,26 @@ export default function SolutionDisplay({ moves }: SolutionDisplayProps) {
   );
 }
 
-function getStepDescription(move: string): string {
-  const descriptions: Record<string, string> = {
+function getStepDescription(move: Move): string {
+  const descriptions: Record<Move, string> = {
     'U': 'Rotate the upper face clockwise',
     'U\'': 'Rotate the upper face counter-clockwise',
+    'U2': 'Rotate the upper face twice',
     'D': 'Rotate the bottom face clockwise',
     'D\'': 'Rotate the bottom face counter-clockwise',
+    'D2': 'Rotate the bottom face twice',
     'L': 'Rotate the left face clockwise',
     'L\'': 'Rotate the left face counter-clockwise',
+    'L2': 'Rotate the left face twice',
     'R': 'Rotate the right face clockwise',
     'R\'': 'Rotate the right face counter-clockwise',
+    'R2': 'Rotate the right face twice',
     'F': 'Rotate the front face clockwise',
     'F\'': 'Rotate the front face counter-clockwise',
+    'F2': 'Rotate the front face twice',
     'B': 'Rotate the back face clockwise',
     'B\'': 'Rotate the back face counter-clockwise',
+    'B2': 'Rotate the back face twice'
   };
-  return descriptions[move] || move;
+  return descriptions[move];
 }

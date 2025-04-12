@@ -1,7 +1,5 @@
 import { CubeState, Move, Face, Color } from '@/types/cube';
 
-type CubeRotation = 'x' | 'y' | 'z' | 'x\'' | 'y\'' | 'z\'';
-
 export class CubeSolver {
   private state: CubeState;
   private solution: Move[] = [];
@@ -22,9 +20,7 @@ export class CubeSolver {
     
     Object.values(this.state).forEach(face => {
       face.forEach((color: Color) => {
-        if (colorCounts.hasOwnProperty(color)) {
-          colorCounts[color] = (colorCounts[color] || 0) + 1;
-        }
+        colorCounts[color] = (colorCounts[color] || 0) + 1;
       });
     });
 
