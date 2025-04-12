@@ -242,7 +242,7 @@ export class CubeSolver {
     return edges;
   }
 
-  private getEdgeSolutionMoves(edge: { face: Face; index: number }, _targetFace: Face): Move[] {
+  private getEdgeSolutionMoves(edge: { face: Face; index: number }, targetFace: Face): Move[] {
     const moves: Move[] = [];
     const { face, index } = edge;
 
@@ -267,22 +267,28 @@ export class CubeSolver {
 
     const secondColor = this.state[secondFace][secondIndex];
 
-    // Determine target position based on the two colors
-    let targetPosition: Face;
-    if (firstColor === 'W' || secondColor === 'W') {
-      targetPosition = 'U';
-    } else if (firstColor === 'Y' || secondColor === 'Y') {
-      targetPosition = 'D';
+    // Use targetFace instead of determining it from colors if it's a valid target
+    let targetPosition: Face = targetFace;
+    if (targetFace === 'U' || targetFace === 'D') {
+      // Keep the specified target face
+      targetPosition = targetFace;
     } else {
-      // For middle layer edges
-      if ((firstColor === 'R' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'R')) {
-        targetPosition = 'R';
-      } else if ((firstColor === 'R' && secondColor === 'G') || (firstColor === 'G' && secondColor === 'R')) {
-        targetPosition = 'R';
-      } else if ((firstColor === 'O' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'O')) {
-        targetPosition = 'L';
+      // Determine target position based on the two colors
+      if (firstColor === 'W' || secondColor === 'W') {
+        targetPosition = 'U';
+      } else if (firstColor === 'Y' || secondColor === 'Y') {
+        targetPosition = 'D';
       } else {
-        targetPosition = 'L';
+        // For middle layer edges
+        if ((firstColor === 'R' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'R')) {
+          targetPosition = 'R';
+        } else if ((firstColor === 'R' && secondColor === 'G') || (firstColor === 'G' && secondColor === 'R')) {
+          targetPosition = 'R';
+        } else if ((firstColor === 'O' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'O')) {
+          targetPosition = 'L';
+        } else {
+          targetPosition = 'L';
+        }
       }
     }
 
@@ -306,7 +312,7 @@ export class CubeSolver {
     return moves;
   }
 
-  private getCornerSolutionMoves(corner: { face: Face; index: number }, _targetFace: Face): Move[] {
+  private getCornerSolutionMoves(corner: { face: Face; index: number }, targetFace: Face): Move[] {
     const moves: Move[] = [];
     const { face, index } = corner;
 
@@ -318,15 +324,21 @@ export class CubeSolver {
     const secondColor = this.state[adjacentFaces[0].face][adjacentFaces[0].index];
     const thirdColor = this.state[adjacentFaces[1].face][adjacentFaces[1].index];
 
-    // Determine target position based on corner colors
-    let targetPosition: Face;
-    if (firstColor === 'W' || secondColor === 'W' || thirdColor === 'W') {
-      targetPosition = 'U';
-    } else if (firstColor === 'Y' || secondColor === 'Y' || thirdColor === 'Y') {
-      targetPosition = 'D';
+    // Use targetFace if it's U or D, otherwise determine from colors
+    let targetPosition: Face = targetFace;
+    if (targetFace === 'U' || targetFace === 'D') {
+      // Keep the specified target face
+      targetPosition = targetFace;
     } else {
-      // For middle layer corners (shouldn't happen in a valid cube)
-      targetPosition = face;
+      // Determine target position based on corner colors
+      if (firstColor === 'W' || secondColor === 'W' || thirdColor === 'W') {
+        targetPosition = 'U';
+      } else if (firstColor === 'Y' || secondColor === 'Y' || thirdColor === 'Y') {
+        targetPosition = 'D';
+      } else {
+        // For middle layer corners (shouldn't happen in a valid cube)
+        targetPosition = face;
+      }
     }
 
     // If corner is not in correct position
