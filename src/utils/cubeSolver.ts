@@ -283,6 +283,27 @@ export class CubeSolver {
     return rotationMaps[face] || [];
   }
 
+  // Common algorithm patterns
+  private applySexyMove(): void {
+    // R U R' U'
+    this.applyMoves(['R', 'U', 'R\'', 'U\'']);
+  }
+
+  private applySledgehammer(): void {
+    // R' F R F'
+    this.applyMoves(['R\'', 'F', 'R', 'F\'']);
+  }
+
+  private applySune(): void {
+    // R U R' U R U2 R'
+    this.applyMoves(['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\'']);
+  }
+
+  private applyAntiSune(): void {
+    // R U2 R' U' R U' R'
+    this.applyMoves(['R', 'U2', 'R\'', 'U\'', 'R', 'U\'', 'R\'']);
+  }
+
   // Helper methods for finding pieces
   private findEdges(color: Color): { face: Face; index: number }[] {
     const edges: { face: Face; index: number }[] = [];
