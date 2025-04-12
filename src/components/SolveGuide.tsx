@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
-
-interface SolveStep {
-  id: string;
-  name: string;
-  description: string;
-  tips: string[];
-}
+import { CubeSolver } from '@/utils/cubeSolver';
 
 interface SolveGuideProps {
-  solver: any; // Replace with proper type when available
+  solver: CubeSolver;
 }
 
 export default function SolveGuide({ solver }: SolveGuideProps) {
