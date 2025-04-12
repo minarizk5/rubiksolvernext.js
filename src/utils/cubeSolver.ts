@@ -246,7 +246,63 @@ export class CubeSolver {
     const moves: Move[] = [];
     const { face, index } = edge;
 
-    // Rest of the implementation remains the same...
+    // Get the current edge colors
+    const firstColor = this.state[face][index];
+    let secondFace: Face, secondIndex: number;
+
+    // Find the connected face and index based on the edge position
+    if (index === 1) { // Top edge
+      secondFace = face === 'F' ? 'U' : face === 'B' ? 'U' : face === 'L' ? 'U' : 'U';
+      secondIndex = face === 'F' ? 7 : face === 'B' ? 1 : face === 'L' ? 3 : 5;
+    } else if (index === 3) { // Left edge
+      secondFace = face === 'F' ? 'L' : face === 'B' ? 'R' : face === 'U' ? 'L' : 'L';
+      secondIndex = face === 'F' ? 5 : face === 'B' ? 5 : face === 'U' ? 5 : 5;
+    } else if (index === 5) { // Right edge
+      secondFace = face === 'F' ? 'R' : face === 'B' ? 'L' : face === 'U' ? 'R' : 'R';
+      secondIndex = face === 'F' ? 3 : face === 'B' ? 3 : face === 'U' ? 3 : 3;
+    } else { // Bottom edge
+      secondFace = face === 'F' ? 'D' : face === 'B' ? 'D' : face === 'L' ? 'D' : 'D';
+      secondIndex = face === 'F' ? 1 : face === 'B' ? 7 : face === 'L' ? 5 : 3;
+    }
+
+    const secondColor = this.state[secondFace][secondIndex];
+
+    // Determine target position based on the two colors
+    let targetPosition: Face;
+    if (firstColor === 'W' || secondColor === 'W') {
+      targetPosition = 'U';
+    } else if (firstColor === 'Y' || secondColor === 'Y') {
+      targetPosition = 'D';
+    } else {
+      // For middle layer edges
+      if ((firstColor === 'R' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'R')) {
+        targetPosition = 'R';
+      } else if ((firstColor === 'R' && secondColor === 'G') || (firstColor === 'G' && secondColor === 'R')) {
+        targetPosition = 'R';
+      } else if ((firstColor === 'O' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'O')) {
+        targetPosition = 'L';
+      } else {
+        targetPosition = 'L';
+      }
+    }
+
+    // Generate moves to get the edge piece to its target position
+    if (face !== targetPosition) {
+      if (face === 'F' && index === 1) {
+        moves.push(...['U', 'R', 'U\'', 'R\'', 'U\'', 'F\'', 'U', 'F'] as Move[]);
+      } else if (face === 'R' && index === 1) {
+        moves.push(...['U\'', 'F\'', 'U', 'F', 'U', 'R', 'U\'', 'R\''] as Move[]);
+      } else {
+        // Add appropriate setup moves based on current position
+        if (face === 'B') moves.push(...['U2'] as Move[]);
+        if (face === 'L') moves.push(...['U\''] as Move[]);
+        if (face === 'R') moves.push(...['U'] as Move[]);
+        
+        // Standard algorithm for edge insertion
+        moves.push(...['F', 'R', 'U', 'R\'', 'U\'', 'F\''] as Move[]);
+      }
+    }
+
     return moves;
   }
 
@@ -254,7 +310,48 @@ export class CubeSolver {
     const moves: Move[] = [];
     const { face, index } = corner;
 
-    // Rest of the implementation remains the same...
+    // Get the current corner colors
+    const firstColor = this.state[face][index];
+    
+    // Get adjacent faces based on corner position
+    const adjacentFaces = this.getCornerAdjacentFaces(face, index);
+    const secondColor = this.state[adjacentFaces[0].face][adjacentFaces[0].index];
+    const thirdColor = this.state[adjacentFaces[1].face][adjacentFaces[1].index];
+
+    // Determine target position based on corner colors
+    let targetPosition: Face;
+    if (firstColor === 'W' || secondColor === 'W' || thirdColor === 'W') {
+      targetPosition = 'U';
+    } else if (firstColor === 'Y' || secondColor === 'Y' || thirdColor === 'Y') {
+      targetPosition = 'D';
+    } else {
+      // For middle layer corners (shouldn't happen in a valid cube)
+      targetPosition = face;
+    }
+
+    // If corner is not in correct position
+    if (face !== targetPosition) {
+      if (face === 'D') {
+        // If corner is on bottom face, bring it up
+        if (index === 0) moves.push(...['L', 'U', 'L\''] as Move[]);
+        else if (index === 2) moves.push(...['R\'', 'U\'', 'R'] as Move[]);
+        else if (index === 6) moves.push(...['L\'', 'U\'', 'L'] as Move[]);
+        else if (index === 8) moves.push(...['R', 'U', 'R\''] as Move[]);
+      } else {
+        // Setup moves to align corner
+        if (face === 'F') {
+          if (index === 0) moves.push(...['F\'', 'U', 'F'] as Move[]);
+          else if (index === 2) moves.push(...['F', 'U\'', 'F\''] as Move[]);
+        } else if (face === 'B') {
+          if (index === 0) moves.push(...['B', 'U\'', 'B\''] as Move[]);
+          else if (index === 2) moves.push(...['B\'', 'U', 'B'] as Move[]);
+        }
+        
+        // Standard corner insertion algorithm
+        moves.push(...['U', 'R', 'U\'', 'R\''] as Move[]);
+      }
+    }
+
     return moves;
   }
 
