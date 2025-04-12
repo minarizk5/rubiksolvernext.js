@@ -3,6 +3,7 @@ import { CubeState, Move, Face, Color } from '@/types/cube';
 export class CubeSolver {
   private state: CubeState;
   private solution: Move[] = [];
+  private cornerAttempts: number = 0;
 
   constructor(initialState: CubeState) {
     this.state = { ...initialState };
@@ -60,32 +61,121 @@ export class CubeSolver {
   }
 
   private solveMiddleLayer() {
-    // Solve middle layer edges
+    // First check for parity case (odd number of edge flips)
     const middleEdges = this.findMiddleLayerEdges();
-    middleEdges.forEach(edge => {
+    let attempts = 0;
+    const maxAttempts = 4; // Prevent infinite loops
+    
+    while (middleEdges.length > 0 && attempts < maxAttempts) {
+      const edge = middleEdges[0];
       const moves = this.getMiddleLayerSolutionMoves(edge);
+      
+      // If we can't solve the edge directly, it might be in a parity state
+      if (moves.length === 0 && attempts > 0) {
+        // Apply parity fix algorithm
+        this.applyMoves([
+          'R', 'U', 'R\'', 'U\'', // Setup
+          'R\'', 'F', 'R2', 'U\'', // Edge flip
+          'R\'', 'U\'', 'R', 'U', // Restore
+          'R\'', 'F\'', 'R' // Final fix
+        ]);
+      }
+      
       this.applyMoves(moves);
-    });
-  }
-
-  private solveYellowCross() {
-    // Create yellow cross on top
-    while (!this.hasYellowCross()) {
-      this.applyMoves(['F', 'R', 'U', 'R\'', 'U\'', 'F\'']);
+      attempts++;
+      
+      // Refresh the list of unsolved edges
+      const remainingEdges = this.findMiddleLayerEdges();
+      if (remainingEdges.length === middleEdges.length) {
+        // If no progress was made, try the next edge
+        middleEdges.push(middleEdges.shift()!);
+      } else {
+        // Reset attempts if we made progress
+        attempts = 0;
+        middleEdges.length = 0;
+        middleEdges.push(...remainingEdges);
+      }
     }
   }
 
+  private solveYellowCross() {
+    // First get yellow edges to top face regardless of orientation
+    while (!this.hasYellowEdgesOnTop()) {
+      this.applyMoves(['F', 'R', 'U', 'R\'', 'U\'', 'F\'']);
+    }
+
+    // Then orient the edges correctly
+    let attempts = 0;
+    while (!this.hasYellowCross() && attempts < 4) {
+      // Try different algorithms based on the pattern
+      if (this.hasYellowLine()) {
+        this.applyMoves(['F', 'R', 'U', 'R\'', 'U\'', 'F\'']);
+      } else if (this.hasYellowL()) {
+        this.applyMoves(['F', 'U', 'R', 'U\'', 'R\'', 'F\'']);
+      } else {
+        this.applyMoves(['U']);
+      }
+      attempts++;
+    }
+  }
+
+  private hasYellowEdgesOnTop(): boolean {
+    const edges = [1, 3, 5, 7];
+    return edges.every(i => this.state.D[i] === 'Y');
+  }
+
+  private hasYellowLine(): boolean {
+    return (this.state.D[1] === 'Y' && this.state.D[7] === 'Y') ||
+           (this.state.D[3] === 'Y' && this.state.D[5] === 'Y');
+  }
+
+  private hasYellowL(): boolean {
+    return (this.state.D[1] === 'Y' && this.state.D[3] === 'Y') ||
+           (this.state.D[3] === 'Y' && this.state.D[7] === 'Y') ||
+           (this.state.D[7] === 'Y' && this.state.D[5] === 'Y') ||
+           (this.state.D[5] === 'Y' && this.state.D[1] === 'Y');
+  }
+
   private solveYellowCorners() {
-    // Position yellow corners
-    while (!this.hasYellowCorners()) {
-      this.applyMoves(['U', 'R', 'U\'', 'L\'', 'U', 'R\'', 'U\'', 'L']);
+    // First get yellow corners to the bottom face regardless of orientation
+    while (!this.hasYellowCornersOnBottom()) {
+      // Sune algorithm for corner permutation
+      this.applyMoves(['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\'']);
+      
+      // If no progress after Sune, try bringing corners up and repositioning
+      if (!this.hasYellowCornersOnBottom()) {
+        this.applyMoves(['U', 'R', 'U\'', 'L\'', 'U', 'R\'', 'U\'', 'L']);
+      }
+    }
+
+    // Then position the corners correctly
+    let attempts = 0;
+    while (!this.hasYellowCorners() && attempts < 4) {
+      if (this.hasTwoAdjacent()) {
+        // Position two adjacent corners
+        this.applyMoves(['U', 'R', 'U\'', 'L\'', 'U', 'R\'', 'U\'', 'L']);
+      } else {
+        this.applyMoves(['U']);
+      }
+      attempts++;
     }
   }
 
   private orientYellowCorners() {
-    // Orient yellow corners
-    while (!this.areYellowCornersOriented()) {
-      this.applyMoves(['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\'']);
+    // Orient each corner one at a time
+    for (let i = 0; i < 4; i++) {
+      // Repeat until current corner is oriented correctly
+      while (!this.isCornerOriented(i)) {
+        // Right sexy move for clockwise rotation
+        this.applyMoves(['R', 'U', 'R\'', 'U\'']);
+        
+        // If corner not oriented after 3 attempts, try counter-clockwise
+        if (!this.isCornerOriented(i) && this.cornerAttempts > 2) {
+          this.applyMoves(['U', 'R', 'U2', 'R\'', 'U', 'R', 'U\'', 'R\'']);
+        }
+      }
+      // Move to next corner
+      if (i < 3) this.applyMoves(['U']);
     }
   }
 
@@ -473,6 +563,37 @@ export class CubeSolver {
 
   private areYellowCornersOriented(): boolean {
     return this.state.D.every(color => color === 'Y');
+  }
+
+  private hasYellowCornersOnBottom(): boolean {
+    const corners = [0, 2, 6, 8];
+    return corners.every(i => {
+      const color = this.state.D[i];
+      return color === 'Y' || this.getCornerColors(i).includes('Y');
+    });
+  }
+
+  private hasTwoAdjacent(): boolean {
+    const corners = [[0,2], [2,8], [8,6], [6,0]];
+    return corners.some(([c1, c2]) => 
+      this.state.D[c1] === 'Y' && this.state.D[c2] === 'Y'
+    );
+  }
+
+  private isCornerOriented(cornerIndex: number): boolean {
+    const cornerPositions = [0, 2, 8, 6];
+    return this.state.D[cornerPositions[cornerIndex]] === 'Y';
+  }
+
+  private getCornerColors(cornerIndex: number): Color[] {
+    const cornerMap: Record<number, [Face, number][]> = {
+      0: [['F', 6], ['L', 8]],
+      2: [['F', 8], ['R', 6]],
+      6: [['B', 6], ['L', 6]],
+      8: [['B', 8], ['R', 8]]
+    };
+
+    return cornerMap[cornerIndex].map(([face, index]) => this.state[face][index]);
   }
 
   // Validation methods
