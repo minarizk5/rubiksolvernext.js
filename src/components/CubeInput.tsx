@@ -156,23 +156,22 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
           </div>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="md:col-span-4 flex justify-center">
+        <div className="grid gap-8">
+          {/* Top face */}
+          <div className="flex justify-center">
             {renderFace('U')}
           </div>
-          <div>
+          
+          {/* Middle row */}
+          <div className="grid grid-cols-4 gap-8 place-items-center">
             {renderFace('L')}
-          </div>
-          <div>
             {renderFace('F')}
-          </div>
-          <div>
             {renderFace('R')}
-          </div>
-          <div>
             {renderFace('B')}
           </div>
-          <div className="md:col-span-4 flex justify-center">
+          
+          {/* Bottom face */}
+          <div className="flex justify-center">
             {renderFace('D')}
           </div>
         </div>
