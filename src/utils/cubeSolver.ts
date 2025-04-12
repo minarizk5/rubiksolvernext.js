@@ -696,9 +696,29 @@ export class CubeSolver {
       console.log('Invalid state: state is null or not an object');
       return false;
     }
+    
     const requiredFaces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
     if (!requiredFaces.every(face => Array.isArray(state[face]) && state[face].length === 9)) {
       console.log('Invalid state: missing faces or invalid face length');
+      return false;
+    }
+
+    // Check center pieces - they should not be changed
+    const centers = {
+      U: state.U[4],
+      D: state.D[4],
+      F: state.F[4],
+      B: state.B[4],
+      L: state.L[4],
+      R: state.R[4]
+    };
+
+    if (centers.U !== 'W' || centers.D !== 'Y' ||
+        centers.F !== 'G' || centers.B !== 'B' ||
+        centers.L !== 'O' || centers.R !== 'R') {
+      console.log('Invalid state: centers have been changed from standard configuration', centers);
+      console.log('Expected: W Y G B O R');
+      console.log('Got:', centers.U, centers.D, centers.F, centers.B, centers.L, centers.R);
       return false;
     }
 
@@ -711,7 +731,7 @@ export class CubeSolver {
       face.forEach((color: Color) => {
         if (!colorCounts.hasOwnProperty(color)) {
           console.log('Invalid state: invalid color found:', color);
-          return;
+          return false;
         }
         colorCounts[color] = (colorCounts[color] || 0) + 1;
       });
@@ -719,11 +739,12 @@ export class CubeSolver {
 
     console.log('Color counts:', colorCounts);
 
-    // During input, we allow partial completion
-    // Each color should not exceed 9 occurrences
-    if (!Object.values(colorCounts).every(count => count <= 9)) {
-      console.log('Invalid state: some colors appear more than 9 times');
-      return false;
+    // Each color should appear exactly 9 times
+    for (const [color, count] of Object.entries(colorCounts)) {
+      if (count > 9) {
+        console.log(`Invalid state: color ${color} appears ${count} times (max allowed is 9)`);
+        return false;
+      }
     }
 
     // If all colors have exactly 9 occurrences, also check the physical validity
