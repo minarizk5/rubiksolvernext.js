@@ -22,7 +22,7 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
   const [focusedCell, setFocusedCell] = useState<{face: Face, index: number} | null>(null);
   const [isValid, setIsValid] = useState(true);
 
-  const handleCellClick = (face: Face, index: number) => {
+  const handleCellClick = useCallback((face: Face, index: number) => {
     setCubeState(prev => ({
       ...prev,
       [face]: [
@@ -31,7 +31,7 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
         ...prev[face].slice(index + 1)
       ]
     }));
-  };
+  }, [selectedColor]);
 
   const handleColorSelect = (color: Color) => {
     setSelectedColor(color);
@@ -50,7 +50,7 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
     if (!focusedCell) return;
 
     const { face, index } = focusedCell;
-    let newFace = face;
+    const newFace = face;
     let newIndex = index;
 
     switch (e.key) {
@@ -85,7 +85,7 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
 
     setFocusedCell({ face: newFace, index: newIndex });
     e.preventDefault();
-  }, [focusedCell]);
+  }, [focusedCell, handleCellClick]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyNavigation);
