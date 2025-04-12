@@ -803,4 +803,36 @@ export class CubeSolver {
              this.state[face as Face][7] === this.state[face as Face][4]
            );
   }
+
+  getCurrentStep() {
+    return this.solveSteps[this.currentStep] || {
+      id: '',
+      name: 'Complete',
+      description: 'Cube solved!',
+      tips: []
+    };
+  }
+
+  getCurrentProgress() {
+    return {
+      currentStep: this.currentStep + 1,
+      totalSteps: this.solveSteps.length
+    };
+  }
+
+  getNextStep() {
+    if (this.currentStep < this.solveSteps.length - 1) {
+      this.currentStep++;
+      return this.getCurrentStep();
+    }
+    return null;
+  }
+
+  getPreviousStep() {
+    if (this.currentStep > 0) {
+      this.currentStep--;
+      return this.getCurrentStep();
+    }
+    return null;
+  }
 }
