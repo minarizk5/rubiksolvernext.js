@@ -5,229 +5,343 @@ export class CubeSolver {
   private solution: Move[] = [];
   private cornerAttempts: number = 0;
   private currentStep: number = 0;
-  private solveSteps = [
-    {
-      id: 'white-cross',
-      name: 'White Cross',
-      description: 'Create a white cross on the top face by aligning white edge pieces with their center colors.',
-      tips: [
-        'Find white edge pieces anywhere on the cube',
-        'Position them on the top face forming a cross',
-        'Make sure the edge colors match their adjacent center colors',
-        'Common moves: F, U, R, U\', L\'',
-      ]
-    },
-    {
-      id: 'white-corners',
-      name: 'White Corners',
-      description: 'Place the white corner pieces in their correct positions on the top layer.',
-      tips: [
-        'Find white corner pieces',
-        'Position them under their target location',
-        'Use R U R\' U\' repeatedly if needed',
-        'Check that corner colors match adjacent centers',
-      ]
-    },
-    {
-      id: 'middle-layer',
-      name: 'Middle Layer',
-      description: 'Solve the middle layer by inserting edge pieces in their correct positions.',
-      tips: [
-        'Find edge pieces without yellow',
-        'Position the edge on top matching one center color',
-        'For right insertion: U R U\' R\' U\' F\' U F',
-        'For left insertion: U\' L\' U L U F U\' F\'',
-      ]
-    },
-    {
-      id: 'yellow-cross',
-      name: 'Yellow Cross',
-      description: 'Create a yellow cross on the bottom face.',
-      tips: [
-        'Hold yellow center on bottom',
-        'If no yellow edges: F R U R\' U\' F\'',
-        'For "L" shape: F R U R\' U\' F\'',
-        'For line: F R U R\' U\' F\' twice',
-      ]
-    },
-    {
-      id: 'yellow-corners',
-      name: 'Yellow Corners',
-      description: 'Position yellow corners in their correct spots (not necessarily oriented).',
-      tips: [
-        'Look for correctly positioned yellow corners',
-        'Hold cube with yellow on bottom',
-        'Use: R U R\' U R U2 R\'',
-        'Repeat algorithm until corners are in right spots',
-      ]
-    },
-    {
-      id: 'orient-corners',
-      name: 'Orient Yellow Corners',
-      description: 'Orient the yellow corners to complete the cube.',
-      tips: [
-        'Keep yellow on bottom',
-        'For each corner: R U R\' U\' (repeat until corner solved)',
-        'Move to next corner with U',
-        'Repeat for all corners',
-      ]
-    }
-  ];
+  private solveSteps: {
+    id: string;
+    name: string;
+    description: string;
+    tips: string[];
+  }[] = [];
 
   constructor(initialState: CubeState) {
     this.state = { ...initialState };
     this.currentStep = 0;
+    this.analyzeCubeAndCreateSteps();
   }
 
-  getCurrentStep() {
-    return this.solveSteps[this.currentStep];
-  }
-
-  getNextStep() {
-    if (this.currentStep < this.solveSteps.length - 1) {
-      this.currentStep++;
-      return this.solveSteps[this.currentStep];
-    }
-    return null;
-  }
-
-  getPreviousStep() {
-    if (this.currentStep > 0) {
-      this.currentStep--;
-      return this.solveSteps[this.currentStep];
-    }
-    return null;
-  }
-
-  getTotalSteps() {
-    return this.solveSteps.length;
-  }
-
-  getCurrentProgress() {
-    return {
-      currentStep: this.currentStep + 1,
-      totalSteps: this.solveSteps.length,
-      stepInfo: this.solveSteps[this.currentStep]
-    };
-  }
-
-  resetProgress() {
-    this.currentStep = 0;
-  }
-
-  solve(): Move[] {
-    if (!CubeSolver.isValidState(this.state)) {
-      throw new Error('Invalid cube state');
-    }
-
-    // Check if the cube state is complete (all colors used exactly 9 times)
-    const colorCounts: Record<Color, number> = {
-      'W': 0, 'Y': 0, 'R': 0, 'O': 0, 'B': 0, 'G': 0
-    };
+  private analyzeCubeAndCreateSteps() {
+    this.solveSteps = [];
     
-    Object.values(this.state).forEach(face => {
-      face.forEach((color: Color) => {
-        colorCounts[color] = (colorCounts[color] || 0) + 1;
+    // Check white cross
+    const whiteEdges = this.findEdges('W');
+    const whiteCrossComplete = whiteEdges.every(edge => {
+      const { face, index } = edge;
+      if (face === 'U' && [1, 3, 5, 7].includes(index)) {
+        // Check if adjacent colors match
+        const adjacentColor = this.getAdjacentEdgeColor(face, index);
+        return adjacentColor === this.getCenterColor(this.getAdjacentFace(face, index));
+      }
+      return false;
+    });
+
+    if (!whiteCrossComplete) {
+      this.solveSteps.push({
+        id: 'white-cross',
+        name: 'White Cross',
+        description: 'Create a white cross on the top face by aligning white edge pieces with their center colors.',
+        tips: this.getWhiteCrossTips(whiteEdges)
+      });
+    }
+
+    // Check white corners
+    const whiteCorners = this.findCorners('W');
+    const whiteCornersComplete = whiteCorners.every(corner => {
+      const { face, index } = corner;
+      if (face === 'U' && [0, 2, 6, 8].includes(index)) {
+        return this.isCornerCorrectlyPlaced(face, index);
+      }
+      return false;
+    });
+
+    if (!whiteCornersComplete) {
+      this.solveSteps.push({
+        id: 'white-corners',
+        name: 'White Corners',
+        description: 'Place the white corner pieces in their correct positions on the top layer.',
+        tips: this.getWhiteCornerTips(whiteCorners)
+      });
+    }
+
+    // Check middle layer
+    const middleLayerComplete = this.isMiddleLayerComplete();
+    if (!middleLayerComplete) {
+      this.solveSteps.push({
+        id: 'middle-layer',
+        name: 'Middle Layer',
+        description: 'Solve the middle layer by inserting edge pieces in their correct positions.',
+        tips: this.getMiddleLayerTips()
+      });
+    }
+
+    // Check yellow cross
+    const yellowCrossComplete = this.hasYellowCross();
+    if (!yellowCrossComplete) {
+      this.solveSteps.push({
+        id: 'yellow-cross',
+        name: 'Yellow Cross',
+        description: 'Create a yellow cross on the bottom face.',
+        tips: this.getYellowCrossTips()
+      });
+    }
+
+    // Check yellow corners position
+    const yellowCornersPositioned = this.hasYellowCorners();
+    if (!yellowCornersPositioned) {
+      this.solveSteps.push({
+        id: 'yellow-corners',
+        name: 'Yellow Corners',
+        description: 'Position yellow corners in their correct spots.',
+        tips: this.getYellowCornerTips()
+      });
+    }
+
+    // Check yellow corners orientation
+    const yellowCornersOriented = this.areYellowCornersOriented();
+    if (!yellowCornersOriented) {
+      this.solveSteps.push({
+        id: 'orient-corners',
+        name: 'Orient Yellow Corners',
+        description: 'Orient the yellow corners to complete the cube.',
+        tips: this.getYellowCornerOrientationTips()
+      });
+    }
+  }
+
+  private getWhiteCrossTips(whiteEdges: { face: Face; index: number }[]): string[] {
+    const tips: string[] = [];
+    const misplacedEdges = whiteEdges.filter(edge => {
+      const { face, index } = edge;
+      return face !== 'U' || ![1, 3, 5, 7].includes(index);
+    });
+
+    if (misplacedEdges.length > 0) {
+      tips.push(`Found ${misplacedEdges.length} white edge(s) to move: ${this.describeEdgeLocations(misplacedEdges)}`);
+    }
+
+    const incorrectlyOrientedEdges = whiteEdges.filter(edge => {
+      const { face, index } = edge;
+      if (face === 'U' && [1, 3, 5, 7].includes(index)) {
+        const adjacentColor = this.getAdjacentEdgeColor(face, index);
+        return adjacentColor !== this.getCenterColor(this.getAdjacentFace(face, index));
+      }
+      return false;
+    });
+
+    if (incorrectlyOrientedEdges.length > 0) {
+      tips.push(`${incorrectlyOrientedEdges.length} edge(s) need reorienting`);
+      tips.push('Use F U\' R U to flip edges');
+    }
+
+    tips.push('Align white edges with matching center colors');
+    return tips;
+  }
+
+  private getWhiteCornerTips(whiteCorners: { face: Face; index: number }[]): string[] {
+    const tips: string[] = [];
+    const misplacedCorners = whiteCorners.filter(corner => {
+      const { face, index } = corner;
+      return face !== 'U' || ![0, 2, 6, 8].includes(index);
+    });
+
+    if (misplacedCorners.length > 0) {
+      tips.push(`Found ${misplacedCorners.length} white corner(s) to place: ${this.describeCornerLocations(misplacedCorners)}`);
+      tips.push('Use R U R\' U\' to insert corners');
+    }
+
+    const incorrectlyOrientedCorners = whiteCorners.filter(corner => {
+      const { face, index } = corner;
+      if (face === 'U' && [0, 2, 6, 8].includes(index)) {
+        return !this.isCornerCorrectlyPlaced(face, index);
+      }
+      return false;
+    });
+
+    if (incorrectlyOrientedCorners.length > 0) {
+      tips.push(`${incorrectlyOrientedCorners.length} corner(s) need reorienting`);
+      tips.push('Use R U R\' U\' until corner is correctly oriented');
+    }
+
+    return tips;
+  }
+
+  private getMiddleLayerTips(): string[] {
+    const tips: string[] = [];
+    const edges = this.findMiddleLayerEdges();
+    const misplacedEdges = edges.filter(edge => !this.isEdgeCorrectlyPlaced(edge.face, edge.index));
+
+    if (misplacedEdges.length > 0) {
+      tips.push(`Found ${misplacedEdges.length} edge(s) to insert into middle layer`);
+      tips.push('For right insertion: U R U\' R\' U\' F\' U F');
+      tips.push('For left insertion: U\' L\' U L U F U\' F\'');
+    }
+
+    return tips;
+  }
+
+  private getYellowCrossTips(): string[] {
+    const tips: string[] = ['Hold yellow center on bottom'];
+    
+    if (!this.hasYellowEdgesOnTop()) {
+      tips.push('No yellow edges on bottom - use F R U R\' U\' F\'');
+    } else if (this.hasYellowLine()) {
+      tips.push('Line pattern detected - use F R U R\' U\' F\'');
+    } else if (this.hasYellowL()) {
+      tips.push('L pattern detected - use F U R U\' R\' F\'');
+    }
+
+    return tips;
+  }
+
+  private getYellowCornerTips(): string[] {
+    const tips: string[] = ['Hold yellow center on bottom'];
+    
+    if (!this.hasYellowCornersOnBottom()) {
+      tips.push('Use R U R\' U R U2 R\' to get yellow corners to bottom');
+    } else if (this.hasTwoAdjacent()) {
+      tips.push('Two adjacent corners found - use R U R\' U R U2 R\'');
+    }
+
+    return tips;
+  }
+
+  private getYellowCornerOrientationTips(): string[] {
+    const tips: string[] = ['Keep yellow on bottom'];
+    const unorientedCorners = [0, 2, 6, 8].filter(i => !this.isCornerOriented(i));
+    
+    tips.push(`${unorientedCorners.length} corner(s) need orienting`);
+    tips.push('For each corner: R U R\' U\' (repeat until corner solved)');
+    tips.push('Move to next corner with U');
+
+    return tips;
+  }
+
+  private describeEdgeLocations(edges: { face: Face; index: number }[]): string {
+    return edges.map(({ face, index }) => {
+      const position = index === 1 ? 'top' : index === 3 ? 'left' : index === 5 ? 'right' : 'bottom';
+      return `${position} of ${this.getFaceName(face)} face`;
+    }).join(', ');
+  }
+
+  private describeCornerLocations(corners: { face: Face; index: number }[]): string {
+    return corners.map(({ face, index }) => {
+      const position = index === 0 ? 'top-left' : index === 2 ? 'top-right' : 
+                      index === 6 ? 'bottom-left' : 'bottom-right';
+      return `${position} of ${this.getFaceName(face)} face`;
+    }).join(', ');
+  }
+
+  private getFaceName(face: Face): string {
+    const names: Record<Face, string> = {
+      U: 'Upper', D: 'Bottom', F: 'Front', 
+      B: 'Back', L: 'Left', R: 'Right'
+    };
+    return names[face];
+  }
+
+  private getAdjacentFace(face: Face, index: number): Face {
+    const adjacentMap: Record<Face, Record<number, Face>> = {
+      U: { 1: 'B', 3: 'L', 5: 'R', 7: 'F' },
+      D: { 1: 'F', 3: 'L', 5: 'R', 7: 'B' },
+      F: { 1: 'U', 3: 'L', 5: 'R', 7: 'D' },
+      B: { 1: 'U', 3: 'R', 5: 'L', 7: 'D' },
+      L: { 1: 'U', 3: 'B', 5: 'F', 7: 'D' },
+      R: { 1: 'U', 3: 'F', 5: 'B', 7: 'D' }
+    };
+    return adjacentMap[face][index];
+  }
+
+  private getAdjacentEdgeColor(face: Face, index: number): Color {
+    const adjacentFace = this.getAdjacentFace(face, index);
+    const adjacentIndex = this.getOppositeEdgeIndex(index);
+    return this.state[adjacentFace][adjacentIndex];
+  }
+
+  private getOppositeEdgeIndex(index: number): number {
+    const oppositeMap: Record<number, number> = {
+      1: 7, 3: 5, 5: 3, 7: 1
+    };
+    return oppositeMap[index];
+  }
+
+  private getCenterColor(face: Face): Color {
+    return this.state[face][4];
+  }
+
+  private findEdges(color: Color): Array<{ face: Face; index: number }> {
+    const edges: Array<{ face: Face; index: number }> = [];
+    const faces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
+    const edgeIndices = [1, 3, 5, 7];
+
+    faces.forEach(face => {
+      edgeIndices.forEach(index => {
+        if (this.state[face][index] === color) {
+          edges.push({ face, index });
+        }
       });
     });
 
-    if (!Object.values(colorCounts).every(count => count === 9)) {
-      throw new Error('Incomplete cube state - each color must appear exactly 9 times');
-    }
-
-    this.solution = [];
-    
-    // Basic solving algorithm implementation (Layer by Layer method)
-    this.solveWhiteCross();
-    this.solveWhiteCorners();
-    this.solveMiddleLayer();
-    this.solveYellowCross();
-    this.solveYellowCorners();
-    this.orientYellowCorners();
-    
-    return this.solution;
+    return edges;
   }
 
-  private solveWhiteCross() {
-    // Find and solve white edges
-    const edges = this.findEdges('W');
-    edges.forEach(edge => {
-      const moves = this.getEdgeSolutionMoves(edge, 'U');
-      this.applyMoves(moves);
+  private findCorners(color: Color): Array<{ face: Face; index: number }> {
+    const corners: Array<{ face: Face; index: number }> = [];
+    const faces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
+    const cornerIndices = [0, 2, 6, 8];
+
+    faces.forEach(face => {
+      cornerIndices.forEach(index => {
+        if (this.state[face][index] === color) {
+          corners.push({ face, index });
+        }
+      });
     });
+
+    return corners;
   }
 
-  private solveWhiteCorners() {
-    // Find and solve white corners
-    const corners = this.findCorners('W');
-    corners.forEach(corner => {
-      const moves = this.getCornerSolutionMoves(corner, 'U');
-      this.applyMoves(moves);
+  private findMiddleLayerEdges(): Array<{ face: Face; index: number }> {
+    const edges: Array<{ face: Face; index: number }> = [];
+    const faces: Face[] = ['F', 'B', 'L', 'R'];
+    const edgeIndices = [3, 5];
+
+    faces.forEach(face => {
+      edgeIndices.forEach(index => {
+        if (!this.isEdgeYellow(face, index)) {
+          edges.push({ face, index });
+        }
+      });
     });
+
+    return edges;
   }
 
-  private solveMiddleLayer() {
-    // First check for parity case (odd number of edge flips)
-    const middleEdges = this.findMiddleLayerEdges();
-    let attempts = 0;
-    const maxAttempts = 4; // Prevent infinite loops
-    
-    while (middleEdges.length > 0 && attempts < maxAttempts) {
-      const edge = middleEdges[0];
-      const moves = this.getMiddleLayerSolutionMoves(edge);
-      
-      // If we can't solve the edge directly, it might be in a parity state
-      if (moves.length === 0 && attempts > 0) {
-        // Apply parity fix algorithm
-        this.applyMoves([
-          'R', 'U', 'R\'', 'U\'', // Setup
-          'R\'', 'F', 'R2', 'U\'', // Edge flip
-          'R\'', 'U\'', 'R', 'U', // Restore
-          'R\'', 'F\'', 'R' // Final fix
-        ]);
-      }
-      
-      this.applyMoves(moves);
-      attempts++;
-      
-      // Refresh the list of unsolved edges
-      const remainingEdges = this.findMiddleLayerEdges();
-      if (remainingEdges.length === middleEdges.length) {
-        // If no progress was made, try the next edge
-        middleEdges.push(middleEdges.shift()!);
-      } else {
-        // Reset attempts if we made progress
-        attempts = 0;
-        middleEdges.length = 0;
-        middleEdges.push(...remainingEdges);
-      }
-    }
+  private isEdgeYellow(face: Face, index: number): boolean {
+    const edgeColors = this.getEdgeColors(face, index);
+    return edgeColors.includes('Y');
   }
 
-  private solveYellowCross() {
-    // First get yellow edges to top face regardless of orientation
-    while (!this.hasYellowEdgesOnTop()) {
-      this.applyMoves(['F', 'R', 'U', 'R\'', 'U\'', 'F\'']);
-    }
+  private getEdgeColors(face: Face, index: number): Color[] {
+    const colors: Color[] = [this.state[face][index]];
+    const adjacentFace = this.getAdjacentFace(face, index);
+    const adjacentIndex = this.getOppositeEdgeIndex(index);
+    colors.push(this.state[adjacentFace][adjacentIndex]);
+    return colors;
+  }
 
-    // Then orient the edges correctly
-    let attempts = 0;
-    while (!this.hasYellowCross() && attempts < 4) {
-      // Try different algorithms based on the pattern
-      if (this.hasYellowLine()) {
-        this.applyMoves(['F', 'R', 'U', 'R\'', 'U\'', 'F\'']);
-      } else if (this.hasYellowL()) {
-        this.applyMoves(['F', 'U', 'R', 'U\'', 'R\'', 'F\'']);
-      } else {
-        this.applyMoves(['U']);
-      }
-      attempts++;
-    }
+  private isEdgeCorrectlyPlaced(face: Face, index: number): boolean {
+    const edgeColors = this.getEdgeColors(face, index);
+    const targetColors = [
+      this.state[face][4],
+      this.state[this.getAdjacentFace(face, index)][4]
+    ];
+    return edgeColors.every((color, i) => color === targetColors[i]);
+  }
+
+  private hasYellowCross(): boolean {
+    return [1, 3, 5, 7].every(i => this.state.D[i] === 'Y');
   }
 
   private hasYellowEdgesOnTop(): boolean {
-    const edges = [1, 3, 5, 7];
-    return edges.every(i => this.state.D[i] === 'Y');
+    return [1, 3, 5, 7].some(i => this.state.D[i] === 'Y');
   }
 
   private hasYellowLine(): boolean {
@@ -242,57 +356,121 @@ export class CubeSolver {
            (this.state.D[5] === 'Y' && this.state.D[1] === 'Y');
   }
 
-  private solveYellowCorners() {
-    // First get yellow corners to the bottom face regardless of orientation
-    while (!this.hasYellowCornersOnBottom()) {
-      // Sune algorithm for corner permutation
-      this.applyMoves(['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\'']);
-      
-      // If no progress after Sune, try bringing corners up and repositioning
-      if (!this.hasYellowCornersOnBottom()) {
-        this.applyMoves(['U', 'R', 'U\'', 'L\'', 'U', 'R\'', 'U\'', 'L']);
-      }
-    }
-
-    // Then position the corners correctly
-    let attempts = 0;
-    while (!this.hasYellowCorners() && attempts < 4) {
-      if (this.hasTwoAdjacent()) {
-        // Position two adjacent corners
-        this.applyMoves(['U', 'R', 'U\'', 'L\'', 'U', 'R\'', 'U\'', 'L']);
-      } else {
-        this.applyMoves(['U']);
-      }
-      attempts++;
-    }
+  private hasYellowCorners(): boolean {
+    return [0, 2, 6, 8].every(i => this.state.D[i] === 'Y');
   }
 
-  private orientYellowCorners() {
-    // Orient each corner one at a time
-    for (let i = 0; i < 4; i++) {
-      // Repeat until current corner is oriented correctly
-      while (!this.isCornerOriented(i)) {
-        // Right sexy move for clockwise rotation
-        this.applyMoves(['R', 'U', 'R\'', 'U\'']);
-        
-        // If corner not oriented after 3 attempts, try counter-clockwise
-        if (!this.isCornerOriented(i) && this.cornerAttempts > 2) {
-          this.applyMoves(['U', 'R', 'U2', 'R\'', 'U', 'R', 'U\'', 'R\'']);
-        }
-      }
-      // Move to next corner
-      if (i < 3) this.applyMoves(['U']);
-    }
+  private hasYellowCornersOnBottom(): boolean {
+    return [0, 2, 6, 8].filter(i => this.state.D[i] === 'Y').length >= 2;
   }
 
-  private applyMoves(moves: Move[]) {
-    moves.forEach(move => {
-      this.applyMove(move);
-      this.solution.push(move);
+  private hasTwoAdjacent(): boolean {
+    const corners = [0, 2, 6, 8];
+    return corners.some((c1, i) => 
+      corners.some((c2, j) => 
+        i !== j && 
+        this.state.D[c1] === 'Y' && 
+        this.state.D[c2] === 'Y' && 
+        this.areAdjacentCorners(c1, c2)
+      )
+    );
+  }
+
+  private areAdjacentCorners(corner1: number, corner2: number): boolean {
+    const adjacentPairs = [[0, 2], [2, 8], [8, 6], [6, 0]];
+    return adjacentPairs.some(([c1, c2]) => 
+      (corner1 === c1 && corner2 === c2) || 
+      (corner1 === c2 && corner2 === c1)
+    );
+  }
+
+  private isCornerOriented(index: number): boolean {
+    return this.state.D[index] === 'Y';
+  }
+
+  private isMiddleLayerComplete(): boolean {
+    const faces: Face[] = ['F', 'B', 'L', 'R'];
+    return faces.every(face => 
+      [3, 5].every(index => this.isEdgeCorrectlyPlaced(face, index))
+    );
+  }
+
+  private areYellowCornersOriented(): boolean {
+    return [0, 2, 6, 8].every(i => this.state.D[i] === 'Y');
+  }
+
+  private isCornerCorrectlyPlaced(face: Face, index: number): boolean {
+    const cornerColors = this.getCornerColors(face, index);
+    const targetColors = this.getTargetCornerColors(face, index);
+    return cornerColors.every((color, i) => color === targetColors[i]);
+  }
+
+  private getCornerColors(face: Face, index: number): Color[] {
+    const colors: Color[] = [this.state[face][index]];
+    const adjacentFaces = this.getAdjacentCornerFaces(face, index);
+    adjacentFaces.forEach(({ face: adjFace, index: adjIndex }) => {
+      colors.push(this.state[adjFace][adjIndex]);
     });
+    return colors;
   }
 
-  private applyMove(move: Move) {
+  private getTargetCornerColors(face: Face, index: number): Color[] {
+    const centerColors: Color[] = [this.state[face][4]];
+    const adjacentFaces = this.getAdjacentCornerFaces(face, index);
+    adjacentFaces.forEach(({ face: adjFace }) => {
+      centerColors.push(this.state[adjFace][4]);
+    });
+    return centerColors;
+  }
+
+  private getAdjacentCornerFaces(face: Face, index: number): Array<{ face: Face; index: number }> {
+    const cornerMap: Record<Face, Record<number, Array<{ face: Face; index: number }>>> = {
+      U: {
+        0: [{ face: 'L', index: 2 }, { face: 'B', index: 2 }],
+        2: [{ face: 'B', index: 0 }, { face: 'R', index: 2 }],
+        6: [{ face: 'L', index: 0 }, { face: 'F', index: 0 }],
+        8: [{ face: 'F', index: 2 }, { face: 'R', index: 0 }]
+      },
+      D: {
+        0: [{ face: 'L', index: 8 }, { face: 'F', index: 6 }],
+        2: [{ face: 'F', index: 8 }, { face: 'R', index: 6 }],
+        6: [{ face: 'L', index: 6 }, { face: 'B', index: 8 }],
+        8: [{ face: 'B', index: 6 }, { face: 'R', index: 8 }]
+      },
+      F: {
+        0: [{ face: 'U', index: 6 }, { face: 'L', index: 2 }],
+        2: [{ face: 'U', index: 8 }, { face: 'R', index: 0 }],
+        6: [{ face: 'D', index: 0 }, { face: 'L', index: 8 }],
+        8: [{ face: 'D', index: 2 }, { face: 'R', index: 6 }]
+      },
+      B: {
+        0: [{ face: 'U', index: 2 }, { face: 'R', index: 2 }],
+        2: [{ face: 'U', index: 0 }, { face: 'L', index: 2 }],
+        6: [{ face: 'D', index: 8 }, { face: 'R', index: 8 }],
+        8: [{ face: 'D', index: 6 }, { face: 'L', index: 6 }]
+      },
+      L: {
+        0: [{ face: 'U', index: 0 }, { face: 'B', index: 2 }],
+        2: [{ face: 'U', index: 6 }, { face: 'F', index: 0 }],
+        6: [{ face: 'D', index: 6 }, { face: 'B', index: 8 }],
+        8: [{ face: 'D', index: 0 }, { face: 'F', index: 6 }]
+      },
+      R: {
+        0: [{ face: 'U', index: 8 }, { face: 'F', index: 2 }],
+        2: [{ face: 'U', index: 2 }, { face: 'B', index: 0 }],
+        6: [{ face: 'D', index: 2 }, { face: 'F', index: 8 }],
+        8: [{ face: 'D', index: 8 }, { face: 'B', index: 6 }]
+      }
+    };
+    return cornerMap[face][index];
+  }
+
+  private updateState(newState: CubeState) {
+    this.state = { ...newState };
+    this.analyzeCubeAndCreateSteps();
+  }
+
+  applyMove(move: Move) {
     const face = move[0] as Face;
     const isCounterClockwise = move.includes('\'');
     const isDouble = move.includes('2');
@@ -308,21 +486,11 @@ export class CubeSolver {
       this.rotateFace(face, newState, isCounterClockwise);
     }
     
-    this.state = newState;
+    this.updateState(newState);
   }
 
   private rotateFace(face: Face, state: CubeState, counterClockwise: boolean = false) {
-    // First rotate the edge and corner pieces around the face
-    const rotationMap = this.getRotationMap(face);
-    const tempState = JSON.parse(JSON.stringify(state));
-    
-    rotationMap.forEach(rotation => {
-      const [fromFace, fromIndex] = counterClockwise ? rotation[1] : rotation[0];
-      const [toFace, toIndex] = counterClockwise ? rotation[0] : rotation[1];
-      state[toFace][toIndex] = tempState[fromFace][fromIndex];
-    });
-
-    // Then rotate the face's own stickers
+    // First rotate the stickers on the face itself
     const faceStickers = [...state[face]];
     if (counterClockwise) {
       // Rotate counterclockwise
@@ -345,33 +513,31 @@ export class CubeSolver {
       state[face][7] = faceStickers[5];
       state[face][8] = faceStickers[2];
     }
+
+    // Then rotate the adjacent face stickers
+    const rotations = this.getRotationMap(face);
+    const tempState = JSON.parse(JSON.stringify(state));
+
+    rotations.forEach(rotation => {
+      const [fromFace, fromIndex] = counterClockwise ? rotation[1] : rotation[0];
+      const [toFace, toIndex] = counterClockwise ? rotation[0] : rotation[1];
+      state[toFace][toIndex] = tempState[fromFace][fromIndex];
+    });
   }
 
   private getRotationMap(face: Face): [Face, number][][] {
-    const rotationMaps: Record<Face, [Face, number][][]> = {
+    const maps: Record<Face, [Face, number][][]> = {
       U: [
-        [['F', 0], ['R', 0]], [['F', 1], ['R', 1]], [['F', 2], ['R', 2]],
-        [['R', 0], ['B', 0]], [['R', 1], ['B', 1]], [['R', 2], ['B', 2]],
-        [['B', 0], ['L', 0]], [['B', 1], ['L', 1]], [['B', 2], ['L', 2]],
-        [['L', 0], ['F', 0]], [['L', 1], ['F', 1]], [['L', 2], ['F', 2]]
+        [['B', 2], ['R', 2]], [['B', 1], ['R', 1]], [['B', 0], ['R', 0]],
+        [['R', 2], ['F', 2]], [['R', 1], ['F', 1]], [['R', 0], ['F', 0]],
+        [['F', 2], ['L', 2]], [['F', 1], ['L', 1]], [['F', 0], ['L', 0]],
+        [['L', 2], ['B', 2]], [['L', 1], ['B', 1]], [['L', 0], ['B', 0]]
       ],
       D: [
-        [['F', 6], ['L', 6]], [['F', 7], ['L', 7]], [['F', 8], ['L', 8]],
-        [['L', 6], ['B', 6]], [['L', 7], ['B', 7]], [['L', 8], ['B', 8]],
-        [['B', 6], ['R', 6]], [['B', 7], ['R', 7]], [['B', 8], ['R', 8]],
-        [['R', 6], ['F', 6]], [['R', 7], ['F', 7]], [['R', 8], ['F', 8]]
-      ],
-      L: [
-        [['U', 0], ['F', 0]], [['U', 3], ['F', 3]], [['U', 6], ['F', 6]],
-        [['F', 0], ['D', 0]], [['F', 3], ['D', 3]], [['F', 6], ['D', 6]],
-        [['D', 0], ['B', 8]], [['D', 3], ['B', 5]], [['D', 6], ['B', 2]],
-        [['B', 8], ['U', 0]], [['B', 5], ['U', 3]], [['B', 2], ['U', 6]]
-      ],
-      R: [
-        [['U', 2], ['B', 6]], [['U', 5], ['B', 3]], [['U', 8], ['B', 0]],
-        [['B', 6], ['D', 2]], [['B', 3], ['D', 5]], [['B', 0], ['D', 8]],
-        [['D', 2], ['F', 2]], [['D', 5], ['F', 5]], [['D', 8], ['F', 8]],
-        [['F', 2], ['U', 2]], [['F', 5], ['U', 5]], [['F', 8], ['U', 8]]
+        [['F', 6], ['R', 6]], [['F', 7], ['R', 7]], [['F', 8], ['R', 8]],
+        [['R', 6], ['B', 6]], [['R', 7], ['B', 7]], [['R', 8], ['B', 8]],
+        [['B', 6], ['L', 6]], [['B', 7], ['L', 7]], [['B', 8], ['L', 8]],
+        [['L', 6], ['F', 6]], [['L', 7], ['F', 7]], [['L', 8], ['F', 8]]
       ],
       F: [
         [['U', 6], ['R', 0]], [['U', 7], ['R', 3]], [['U', 8], ['R', 6]],
@@ -380,494 +546,261 @@ export class CubeSolver {
         [['L', 8], ['U', 6]], [['L', 5], ['U', 7]], [['L', 2], ['U', 8]]
       ],
       B: [
-        [['U', 0], ['L', 0]], [['U', 1], ['L', 3]], [['U', 2], ['L', 6]],
-        [['L', 0], ['D', 8]], [['L', 3], ['D', 7]], [['L', 6], ['D', 6]],
-        [['D', 8], ['R', 2]], [['D', 7], ['R', 5]], [['D', 6], ['R', 8]],
-        [['R', 2], ['U', 0]], [['R', 5], ['U', 1]], [['R', 8], ['U', 2]]
+        [['U', 2], ['L', 0]], [['U', 1], ['L', 3]], [['U', 0], ['L', 6]],
+        [['L', 0], ['D', 6]], [['L', 3], ['D', 7]], [['L', 6], ['D', 8]],
+        [['D', 6], ['R', 8]], [['D', 7], ['R', 5]], [['D', 8], ['R', 2]],
+        [['R', 8], ['U', 2]], [['R', 5], ['U', 1]], [['R', 2], ['U', 0]]
+      ],
+      L: [
+        [['U', 0], ['F', 0]], [['U', 3], ['F', 3]], [['U', 6], ['F', 6]],
+        [['F', 0], ['D', 0]], [['F', 3], ['D', 3]], [['F', 6], ['D', 6]],
+        [['D', 0], ['B', 8]], [['D', 3], ['B', 5]], [['D', 6], ['B', 2]],
+        [['B', 8], ['U', 0]], [['B', 5], ['U', 3]], [['B', 2], ['U', 6]]
+      ],
+      R: [
+        [['U', 8], ['B', 0]], [['U', 5], ['B', 3]], [['U', 2], ['B', 6]],
+        [['B', 0], ['D', 8]], [['B', 3], ['D', 5]], [['B', 6], ['D', 2]],
+        [['D', 8], ['F', 8]], [['D', 5], ['F', 5]], [['D', 2], ['F', 2]],
+        [['F', 8], ['U', 8]], [['F', 5], ['U', 5]], [['F', 2], ['U', 2]]
       ]
     };
-    return rotationMaps[face] || [];
+    return maps[face];
   }
 
-  // Common algorithm patterns
-  private applySexyMove(): void {
-    // R U R' U'
-    this.applyMoves(['R', 'U', 'R\'', 'U\'']);
-  }
-
-  private applySledgehammer(): void {
-    // R' F R F'
-    this.applyMoves(['R\'', 'F', 'R', 'F\'']);
-  }
-
-  private applySune(): void {
-    // R U R' U R U2 R'
-    this.applyMoves(['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\'']);
-  }
-
-  private applyAntiSune(): void {
-    // R U2 R' U' R U' R'
-    this.applyMoves(['R', 'U2', 'R\'', 'U\'', 'R', 'U\'', 'R\'']);
-  }
-
-  // Helper methods for finding pieces
-  private findEdges(color: Color): { face: Face; index: number }[] {
-    const edges: { face: Face; index: number }[] = [];
-    const faces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
-    const edgeIndices = [1, 3, 5, 7]; // Edge positions on each face
-
-    faces.forEach(face => {
-      edgeIndices.forEach(index => {
-        if (this.state[face][index] === color) {
-          edges.push({ face, index });
-        }
-      });
-    });
-
-    return edges;
-  }
-
-  private findCorners(color: Color): { face: Face; index: number }[] {
-    const corners: { face: Face; index: number }[] = [];
-    const faces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
-    const cornerIndices = [0, 2, 6, 8]; // Corner positions on each face
-
-    faces.forEach(face => {
-      cornerIndices.forEach(index => {
-        if (this.state[face][index] === color) {
-          corners.push({ face, index });
-        }
-      });
-    });
-
-    return corners;
-  }
-
-  private findMiddleLayerEdges(): { face: Face; index: number }[] {
-    const edges: { face: Face; index: number }[] = [];
-    const faces: Face[] = ['F', 'R', 'B', 'L'];
+  static isValidState(state: CubeState): boolean {
+    // First check the basic structure
+    if (!state || typeof state !== 'object') return false;
     
-    faces.forEach(face => {
-      [3, 5].forEach(index => { // Middle layer edge positions
-        const color = this.state[face][index];
-        if (color !== 'W' && color !== 'Y') {
-          edges.push({ face, index });
-        }
-      });
-    });
-
-    return edges;
-  }
-
-  private getEdgeSolutionMoves(edge: { face: Face; index: number }, targetFace: Face): Move[] {
-    const moves: Move[] = [];
-    const { face, index } = edge;
-
-    // Get the current edge colors
-    const firstColor = this.state[face][index];
-    let secondFace: Face, secondIndex: number;
-
-    // Find the connected face and index based on the edge position
-    if (index === 1) { // Top edge
-      secondFace = face === 'F' ? 'U' : face === 'B' ? 'U' : face === 'L' ? 'U' : 'U';
-      secondIndex = face === 'F' ? 7 : face === 'B' ? 1 : face === 'L' ? 3 : 5;
-    } else if (index === 3) { // Left edge
-      secondFace = face === 'F' ? 'L' : face === 'B' ? 'R' : face === 'U' ? 'L' : 'L';
-      secondIndex = face === 'F' ? 5 : face === 'B' ? 5 : face === 'U' ? 5 : 5;
-    } else if (index === 5) { // Right edge
-      secondFace = face === 'F' ? 'R' : face === 'B' ? 'L' : face === 'U' ? 'R' : 'R';
-      secondIndex = face === 'F' ? 3 : face === 'B' ? 3 : face === 'U' ? 3 : 3;
-    } else { // Bottom edge
-      secondFace = face === 'F' ? 'D' : face === 'B' ? 'D' : face === 'L' ? 'D' : 'D';
-      secondIndex = face === 'F' ? 1 : face === 'B' ? 7 : face === 'L' ? 5 : 3;
+    const requiredFaces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
+    if (!requiredFaces.every(face => Array.isArray(state[face]) && state[face].length === 9)) {
+      return false;
     }
 
-    const secondColor = this.state[secondFace][secondIndex];
+    // Check center pieces - they should match standard configuration
+    const centerChecks = {
+      U: 'W', D: 'Y', F: 'G',
+      B: 'B', L: 'O', R: 'R'
+    };
 
-    // Use targetFace instead of determining it from colors if it's a valid target
-    let targetPosition: Face = targetFace;
-    if (targetFace === 'U' || targetFace === 'D') {
-      // Keep the specified target face
-      targetPosition = targetFace;
-    } else {
-      // Determine target position based on the two colors
-      if (firstColor === 'W' || secondColor === 'W') {
-        targetPosition = 'U';
-      } else if (firstColor === 'Y' || secondColor === 'Y') {
-        targetPosition = 'D';
-      } else {
-        // For middle layer edges
-        if ((firstColor === 'R' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'R')) {
-          targetPosition = 'R';
-        } else if ((firstColor === 'R' && secondColor === 'G') || (firstColor === 'G' && secondColor === 'R')) {
-          targetPosition = 'R';
-        } else if ((firstColor === 'O' && secondColor === 'B') || (firstColor === 'B' && secondColor === 'O')) {
-          targetPosition = 'L';
+    for (const [face, color] of Object.entries(centerChecks) as [Face, Color][]) {
+      if (state[face][4] !== color) return false;
+    }
+
+    // Count colors to ensure each appears exactly 9 times
+    const colorCounts: Record<Color, number> = { W: 0, Y: 0, R: 0, O: 0, B: 0, G: 0 };
+    for (const face of requiredFaces) {
+      for (const color of state[face]) {
+        if (color in colorCounts) {
+          colorCounts[color as Color]++;
         } else {
-          targetPosition = 'L';
+          return false; // Invalid color found
         }
       }
     }
 
-    // Generate moves to get the edge piece to its target position
-    if (face !== targetPosition) {
-      if (face === 'F' && index === 1) {
-        moves.push(...['U', 'R', 'U\'', 'R\'', 'U\'', 'F\'', 'U', 'F'] as Move[]);
-      } else if (face === 'R' && index === 1) {
-        moves.push(...['U\'', 'F\'', 'U', 'F', 'U', 'R', 'U\'', 'R\''] as Move[]);
+    return Object.values(colorCounts).every(count => count === 9);
+  }
+
+  private solveWhiteCross(): Move[] {
+    const moves: Move[] = [];
+    const whiteEdges = this.findEdges('W');
+    
+    // First get all white edges to the top face
+    whiteEdges.forEach(edge => {
+      const { face, index } = edge;
+      if (face === 'D') {
+        // If on bottom, bring directly to top
+        if (index === 1) moves.push(...['F', 'F'] as Move[]);
+        else if (index === 3) moves.push(...['L', 'L'] as Move[]);
+        else if (index === 5) moves.push(...['R', 'R'] as Move[]);
+        else if (index === 7) moves.push(...['B', 'B'] as Move[]);
+      } else if (face === 'F' || face === 'B' || face === 'L' || face === 'R') {
+        // If on middle layer, bring to top with appropriate algorithm
+        if (index === 3 || index === 5) {
+          if (face === 'F') moves.push(...['F', 'R', 'U\'', 'R\'', 'F\''] as Move[]);
+          else if (face === 'B') moves.push(...['B', 'L', 'U\'', 'L\'', 'B\''] as Move[]);
+          else if (face === 'L') moves.push(...['L', 'F', 'U\'', 'F\'', 'L\''] as Move[]);
+          else if (face === 'R') moves.push(...['R', 'B', 'U\'', 'B\'', 'R\''] as Move[]);
+        }
+      }
+    });
+
+    // Then orient and position each edge correctly
+    for (let i = 0; i < 4; i++) {
+      // Keep rotating top until we find a white edge that needs fixing
+      while (!this.isEdgeCorrectlyPlaced('U', [1, 3, 5, 7][i])) {
+        moves.push('U' as Move);
+      }
+
+      // Once found, apply appropriate algorithm based on position
+      const targetFace = ['B', 'L', 'R', 'F'][i];
+      const currentEdge = this.findEdges('W').find(e => e.face === 'U' && e.index === [1, 3, 5, 7][i]);
+      
+      if (currentEdge) {
+        // If edge is flipped, apply flip algorithm
+        if (!this.isEdgeCorrectlyPlaced('U', currentEdge.index)) {
+          if (targetFace === 'F') moves.push(...['F', 'U', 'R', 'U\'', 'R\'', 'F\''] as Move[]);
+          else if (targetFace === 'R') moves.push(...['R', 'U', 'B', 'U\'', 'B\'', 'R\''] as Move[]);
+          else if (targetFace === 'B') moves.push(...['B', 'U', 'L', 'U\'', 'L\'', 'B\''] as Move[]);
+          else if (targetFace === 'L') moves.push(...['L', 'U', 'F', 'U\'', 'F\'', 'L\''] as Move[]);
+        }
+      }
+    }
+
+    this.solution.push(...moves);
+    return moves;
+  }
+
+  private solveWhiteCorners(): Move[] {
+    const moves: Move[] = [];
+    const whiteCorners = this.findCorners('W');
+    
+    // First get all white corners to the top face
+    whiteCorners.forEach(corner => {
+      const { face, index } = corner;
+      if (face === 'D') {
+        // If on bottom, bring up with sexy move
+        if (index === 0) moves.push(...['L', 'U', 'L\''] as Move[]);
+        else if (index === 2) moves.push(...['R\'', 'U\'', 'R'] as Move[]);
+        else if (index === 6) moves.push(...['B', 'U', 'B\''] as Move[]);
+        else if (index === 8) moves.push(...['F\'', 'U\'', 'F'] as Move[]);
+      }
+    });
+
+    // Then position and orient each corner correctly
+    for (let i = 0; i < 4; i++) {
+      const cornerIndex = [0, 2, 6, 8][i];
+      
+      // Keep applying algorithm until corner is correct
+      while (!this.isCornerCorrectlyPlaced('U', cornerIndex)) {
+        const corner = this.findCorners('W').find(c => c.face === 'U' && c.index === cornerIndex);
+        if (corner) {
+          // Apply sexy move until corner is oriented correctly
+          moves.push(...['R', 'U', 'R\'', 'U\''] as Move[]);
+        } else {
+          // If corner is not in position, bring it up from wherever it is
+          const misplacedCorner = this.findCorners('W').find(c => !this.isCornerCorrectlyPlaced(c.face, c.index));
+          if (misplacedCorner) {
+            moves.push(...['R', 'U', 'R\'', 'U\''] as Move[]);
+          }
+        }
+      }
+      
+      // Move to next corner
+      if (i < 3) moves.push('U' as Move);
+    }
+
+    this.solution.push(...moves);
+    return moves;
+  }
+
+  private solveMiddleLayer(): Move[] {
+    const moves: Move[] = [];
+    const middleEdges = this.findMiddleLayerEdges();
+
+    while (!this.isMiddleLayerComplete()) {
+      for (const edge of middleEdges) {
+        if (!this.isEdgeCorrectlyPlaced(edge.face, edge.index)) {
+          // Get the edge colors
+          const colors = this.getEdgeColors(edge.face, edge.index);
+          const targetFace = this.getFaceForColors(colors[0], colors[1]);
+
+          if (targetFace) {
+            // If edge needs to go to the right
+            if (edge.index === 5) {
+              moves.push(...['U', 'R', 'U\'', 'R\'', 'U\'', 'F\'', 'U', 'F'] as Move[]);
+            }
+            // If edge needs to go to the left
+            else if (edge.index === 3) {
+              moves.push(...['U\'', 'L\'', 'U', 'L', 'U', 'F', 'U\'', 'F\''] as Move[]);
+            }
+          }
+        }
+      }
+      // If we can't make progress, move an edge out and try again
+      if (!this.isMiddleLayerComplete()) {
+        moves.push(...['R', 'U', 'R\'', 'U\'', 'F\'', 'U', 'F'] as Move[]);
+      }
+    }
+
+    this.solution.push(...moves);
+    return moves;
+  }
+
+  private solveYellowCross(): Move[] {
+    const moves: Move[] = [];
+
+    while (!this.hasYellowCross()) {
+      if (this.hasYellowL()) {
+        moves.push(...['F', 'R', 'U', 'R\'', 'U\'', 'F\''] as Move[]);
+      } else if (this.hasYellowLine()) {
+        moves.push(...['F', 'R', 'U', 'R\'', 'U\'', 'F\''] as Move[]);
+        moves.push('U' as Move);
       } else {
-        // Add appropriate setup moves based on current position
-        if (face === 'B') moves.push(...['U2'] as Move[]);
-        if (face === 'L') moves.push(...['U\''] as Move[]);
-        if (face === 'R') moves.push(...['U'] as Move[]);
-        
-        // Standard algorithm for edge insertion
         moves.push(...['F', 'R', 'U', 'R\'', 'U\'', 'F\''] as Move[]);
       }
     }
 
+    // Orient the cross
+    while (!this.areYellowEdgesOriented()) {
+      moves.push(...['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\''] as Move[]);
+      moves.push('U' as Move);
+    }
+
+    this.solution.push(...moves);
     return moves;
   }
 
-  private getCornerSolutionMoves(corner: { face: Face; index: number }, targetFace: Face): Move[] {
-    const moves: Move[] = [];
-    const { face, index } = corner;
-
-    // Get the current corner colors
-    const firstColor = this.state[face][index];
-    
-    // Get adjacent faces based on corner position
-    const adjacentFaces = this.getCornerAdjacentFaces(face, index);
-    const secondColor = this.state[adjacentFaces[0].face][adjacentFaces[0].index];
-    const thirdColor = this.state[adjacentFaces[1].face][adjacentFaces[1].index];
-
-    // Use targetFace if it's U or D, otherwise determine from colors
-    let targetPosition: Face = targetFace;
-    if (targetFace === 'U' || targetFace === 'D') {
-      // Keep the specified target face
-      targetPosition = targetFace;
-    } else {
-      // Determine target position based on corner colors
-      if (firstColor === 'W' || secondColor === 'W' || thirdColor === 'W') {
-        targetPosition = 'U';
-      } else if (firstColor === 'Y' || secondColor === 'Y' || thirdColor === 'Y') {
-        targetPosition = 'D';
-      } else {
-        // For middle layer corners (shouldn't happen in a valid cube)
-        targetPosition = face;
-      }
-    }
-
-    // If corner is not in correct position
-    if (face !== targetPosition) {
-      if (face === 'D') {
-        // If corner is on bottom face, bring it up
-        if (index === 0) moves.push(...['L', 'U', 'L\''] as Move[]);
-        else if (index === 2) moves.push(...['R\'', 'U\'', 'R'] as Move[]);
-        else if (index === 6) moves.push(...['L\'', 'U\'', 'L'] as Move[]);
-        else if (index === 8) moves.push(...['R', 'U', 'R\''] as Move[]);
-      } else {
-        // Setup moves to align corner
-        if (face === 'F') {
-          if (index === 0) moves.push(...['F\'', 'U', 'F'] as Move[]);
-          else if (index === 2) moves.push(...['F', 'U\'', 'F\''] as Move[]);
-        } else if (face === 'B') {
-          if (index === 0) moves.push(...['B', 'U\'', 'B\''] as Move[]);
-          else if (index === 2) moves.push(...['B\'', 'U', 'B'] as Move[]);
-        }
-        
-        // Standard corner insertion algorithm
-        moves.push(...['U', 'R', 'U\'', 'R\''] as Move[]);
-      }
-    }
-
-    return moves;
-  }
-
-  private getCornerAdjacentFaces(face: Face, index: number): { face: Face; index: number }[] {
-    const cornerMap: Record<Face, Record<number, [Face, number][]>> = {
-      U: {
-        0: [['B', 0], ['L', 0]],
-        2: [['B', 2], ['R', 2]],
-        6: [['F', 0], ['L', 2]],
-        8: [['F', 2], ['R', 0]]
-      },
-      D: {
-        0: [['F', 6], ['L', 8]],
-        2: [['F', 8], ['R', 6]],
-        6: [['B', 6], ['L', 6]],
-        8: [['B', 8], ['R', 8]]
-      },
-      F: {
-        0: [['U', 6], ['L', 2]],
-        2: [['U', 8], ['R', 0]],
-        6: [['D', 0], ['L', 8]],
-        8: [['D', 2], ['R', 6]]
-      },
-      B: {
-        0: [['U', 0], ['L', 0]],
-        2: [['U', 2], ['R', 2]],
-        6: [['D', 6], ['L', 6]],
-        8: [['D', 8], ['R', 8]]
-      },
-      L: {
-        0: [['U', 0], ['B', 0]],
-        2: [['U', 6], ['F', 0]],
-        6: [['D', 6], ['B', 6]],
-        8: [['D', 0], ['F', 6]]
-      },
-      R: {
-        0: [['U', 8], ['F', 2]],
-        2: [['U', 2], ['B', 2]],
-        6: [['D', 2], ['F', 8]],
-        8: [['D', 8], ['B', 8]]
-      }
-    };
-
-    return cornerMap[face][index].map(([f, i]) => ({ face: f, index: i }));
-  }
-
-  private getMiddleLayerSolutionMoves(edge: { face: Face; index: number }): Move[] {
-    const { face, index } = edge;
+  private solveYellowCorners(): Move[] {
     const moves: Move[] = [];
 
-    // Get current edge colors
-    const faceColor = this.state[face][index];
-    const otherFaceColor = this.state[index === 3 ? 'L' : 'R'][index === 3 ? 5 : 3];
-
-    // Determine target position based on colors
-    let targetFace: Face;
-    if ((faceColor === 'R' && otherFaceColor === 'B') || (faceColor === 'B' && otherFaceColor === 'R')) {
-      targetFace = 'R';
-    } else if ((faceColor === 'R' && otherFaceColor === 'G') || (faceColor === 'G' && otherFaceColor === 'R')) {
-      targetFace = 'R';
-    } else if ((faceColor === 'O' && otherFaceColor === 'B') || (faceColor === 'B' && otherFaceColor === 'O')) {
-      targetFace = 'L';
-    } else {
-      targetFace = 'L';
+    // First get all yellow corners to bottom face
+    while (!this.hasYellowCornersOnBottom()) {
+      moves.push(...['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\''] as Move[]);
     }
 
-    // If edge is not in correct position or orientation
-    if (face !== targetFace) {
-      // First, get the edge piece to the U layer if it's not already there
-      if (face === 'F') {
-        if (index === 3) moves.push(...['U\'', 'L\'', 'U', 'L', 'U', 'F', 'U\'', 'F\''] as Move[]);
-        else moves.push(...['U', 'R', 'U\'', 'R\'', 'U\'', 'F\'', 'U', 'F'] as Move[]);
-      } else if (face === 'R') {
-        if (index === 3) moves.push(...['U\'', 'F\'', 'U', 'F', 'U', 'R', 'U\'', 'R\''] as Move[]);
-        else moves.push(...['U', 'B', 'U\'', 'B\'', 'U\'', 'R\'', 'U', 'R'] as Move[]);
-      } else if (face === 'B') {
-        if (index === 3) moves.push(...['U\'', 'R\'', 'U', 'R', 'U', 'B', 'U\'', 'B\''] as Move[]);
-        else moves.push(...['U', 'L', 'U\'', 'L\'', 'U\'', 'B\'', 'U', 'B'] as Move[]);
-      } else if (face === 'L') {
-        if (index === 3) moves.push(...['U\'', 'B\'', 'U', 'B', 'U', 'L', 'U\'', 'L\''] as Move[]);
-        else moves.push(...['U', 'F', 'U\'', 'F\'', 'U\'', 'L\'', 'U', 'L'] as Move[]);
-      }
-
-      // Then, apply the appropriate algorithm based on the target position
-      if (targetFace === 'R') {
-        moves.push(...['U', 'R', 'U\'', 'R\'', 'U\'', 'F\'', 'U', 'F'] as Move[]);
+    // Then permute corners until they're in correct positions
+    while (!this.hasYellowCorners()) {
+      if (this.hasTwoAdjacent()) {
+        moves.push(...['R', 'U', 'R\'', 'U', 'R', 'U2', 'R\''] as Move[]);
       } else {
-        moves.push(...['U\'', 'L\'', 'U', 'L', 'U', 'F', 'U\'', 'F\''] as Move[]);
+        moves.push('U' as Move);
       }
     }
 
+    this.solution.push(...moves);
     return moves;
   }
 
-  // State checking methods
-  private hasYellowCross(): boolean {
-    return this.state.D.filter((color, i) => 
-      color === 'Y' && [1, 3, 4, 5, 7].includes(i)
-    ).length === 5;
-  }
-
-  private hasYellowCorners(): boolean {
-    return this.state.D.filter((color, i) => 
-      color === 'Y' && [0, 2, 6, 8].includes(i)
-    ).length === 4;
-  }
-
-  private areYellowCornersOriented(): boolean {
-    return this.state.D.every(color => color === 'Y');
-  }
-
-  private hasYellowCornersOnBottom(): boolean {
-    const corners = [0, 2, 6, 8];
-    return corners.every(i => {
-      const color = this.state.D[i];
-      return color === 'Y' || this.getCornerColors(i).includes('Y');
-    });
-  }
-
-  private hasTwoAdjacent(): boolean {
-    const corners = [[0,2], [2,8], [8,6], [6,0]];
-    return corners.some(([c1, c2]) => 
-      this.state.D[c1] === 'Y' && this.state.D[c2] === 'Y'
-    );
-  }
-
-  private isCornerOriented(cornerIndex: number): boolean {
-    const cornerPositions = [0, 2, 8, 6];
-    return this.state.D[cornerPositions[cornerIndex]] === 'Y';
-  }
-
-  private getCornerColors(cornerIndex: number): Color[] {
-    const cornerMap: Record<number, [Face, number][]> = {
-      0: [['F', 6], ['L', 8]],
-      2: [['F', 8], ['R', 6]],
-      6: [['B', 6], ['L', 6]],
-      8: [['B', 8], ['R', 8]]
-    };
-
-    return cornerMap[cornerIndex].map(([face, index]) => this.state[face][index]);
-  }
-
-  // Validation methods
-  static isValidCubeConfiguration(state: CubeState): boolean {
-    // Check if centers match the standard configuration
-    const centers = {
-      U: state.U[4],
-      D: state.D[4],
-      F: state.F[4],
-      B: state.B[4],
-      L: state.L[4],
-      R: state.R[4]
-    };
-
-    console.log('Centers:', centers);
-
-    // Centers must match standard configuration
-    if (centers.U !== 'W' || centers.D !== 'Y' ||
-        centers.F !== 'G' || centers.B !== 'B' ||
-        centers.L !== 'O' || centers.R !== 'R') {
-      console.log('Invalid configuration: centers do not match standard configuration');
-      return false;
-    }
-
-    // Check edges for valid combinations
-    const edges = [
-      // U face edges
-      [[state.U[1], state.B[1]], [state.U[3], state.L[1]], [state.U[5], state.R[1]], [state.U[7], state.F[1]]],
-      // D face edges
-      [[state.D[1], state.F[7]], [state.D[3], state.L[7]], [state.D[5], state.R[7]], [state.D[7], state.B[7]]],
-      // Middle layer edges
-      [[state.F[3], state.L[5]], [state.F[5], state.R[3]], [state.B[3], state.R[5]], [state.B[5], state.L[3]]]
-    ];
-
-    // Check for impossible edge color combinations
-    const oppositeColors: [Color, Color][] = [['W', 'Y'], ['R', 'O'], ['B', 'G']];
-    for (const edge of edges.flat()) {
-      for (const [color1, color2] of oppositeColors) {
-        if ((edge[0] === color1 && edge[1] === color2) || (edge[0] === color2 && edge[1] === color1)) {
-          console.log('Invalid configuration: impossible edge color combination', edge);
-          return false;
-        }
-      }
-    }
-
-    // Check corners for valid combinations
-    const corners = [
-      // Upper layer corners
-      [[state.U[0], state.L[0], state.B[2]], [state.U[2], state.B[0], state.R[2]], 
-       [state.U[6], state.F[0], state.L[2]], [state.U[8], state.R[0], state.F[2]]],
-      // Lower layer corners
-      [[state.D[0], state.L[8], state.F[6]], [state.D[2], state.F[8], state.R[6]], 
-       [state.D[6], state.B[6], state.L[6]], [state.D[8], state.R[8], state.B[8]]]
-    ];
-
-    // Check for impossible corner color combinations
-    for (const corner of corners.flat()) {
-      // A corner can't have the same color twice
-      if (corner[0] === corner[1] || corner[1] === corner[2] || corner[0] === corner[2]) {
-        console.log('Invalid configuration: corner has duplicate colors', corner);
-        return false;
-      }
-      // A corner can't have opposite colors
-      for (const [color1, color2] of oppositeColors) {
-        const cornerColors = corner as Color[];
-        if (cornerColors.includes(color1) && cornerColors.includes(color2)) {
-          console.log('Invalid configuration: corner has opposite colors', corner);
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
-  static isValidState(state: CubeState): boolean {
-    // First check the basic structure and color counts
-    if (!state || typeof state !== 'object') {
-      console.log('Invalid state: state is null or not an object');
-      return false;
-    }
+  private orientYellowCorners(): Move[] {
+    const moves: Move[] = [];
     
-    const requiredFaces: Face[] = ['U', 'D', 'L', 'R', 'F', 'B'];
-    if (!requiredFaces.every(face => Array.isArray(state[face]) && state[face].length === 9)) {
-      console.log('Invalid state: missing faces or invalid face length');
-      return false;
-    }
-
-    // Check center pieces - they should not be changed
-    const centers = {
-      U: state.U[4],
-      D: state.D[4],
-      F: state.F[4],
-      B: state.B[4],
-      L: state.L[4],
-      R: state.R[4]
-    };
-
-    if (centers.U !== 'W' || centers.D !== 'Y' ||
-        centers.F !== 'G' || centers.B !== 'B' ||
-        centers.L !== 'O' || centers.R !== 'R') {
-      console.log('Invalid state: centers have been changed from standard configuration', centers);
-      console.log('Expected: W Y G B O R');
-      console.log('Got:', centers.U, centers.D, centers.F, centers.B, centers.L, centers.R);
-      return false;
-    }
-
-    // Count occurrences of each color
-    const colorCounts: Record<Color, number> = {
-      'W': 0, 'Y': 0, 'R': 0, 'O': 0, 'B': 0, 'G': 0
-    };
-    
-    Object.values(state).forEach(face => {
-      face.forEach((color: Color) => {
-        if (!colorCounts.hasOwnProperty(color)) {
-          console.log('Invalid state: invalid color found:', color);
-          return false;
-        }
-        colorCounts[color] = (colorCounts[color] || 0) + 1;
-      });
-    });
-
-    console.log('Color counts:', colorCounts);
-
-    // Each color should appear exactly 9 times
-    for (const [color, count] of Object.entries(colorCounts)) {
-      if (count > 9) {
-        console.log(`Invalid state: color ${color} appears ${count} times (max allowed is 9)`);
-        return false;
+    // Orient each corner one at a time
+    for (let i = 0; i < 4; i++) {
+      while (!this.isCornerOriented(i)) {
+        moves.push(...['R', 'U', 'R\'', 'U\''] as Move[]);
       }
+      if (i < 3) moves.push('U' as Move);
     }
 
-    // If all colors have exactly 9 occurrences, also check the physical validity
-    if (Object.values(colorCounts).every(count => count === 9)) {
-      console.log('Checking physical validity...');
-      const isValid = CubeSolver.isValidCubeConfiguration(state);
-      if (!isValid) {
-        console.log('Invalid state: failed physical validity check');
-      }
-      return isValid;
-    }
-
-    return true;
+    this.solution.push(...moves);
+    return moves;
   }
-}
 
-export function solveCube(state: CubeState): Move[] {
-  const solver = new CubeSolver(state);
-  return solver.solve();
+  private getFaceForColors(color1: Color, color2: Color): Face | null {
+    const colorPairs: Record<string, Face> = {
+      'RG': 'F', 'GR': 'F',
+      'RB': 'B', 'BR': 'B',
+      'OG': 'F', 'GO': 'F',
+      'OB': 'B', 'BO': 'B'
+    };
+    return colorPairs[`${color1}${color2}`] || null;
+  }
+
+  private areYellowEdgesOriented(): boolean {
+    return this.hasYellowCross() && 
+           ['F', 'R', 'B', 'L'].every(face => 
+             this.state[face as Face][7] === this.state[face as Face][4]
+           );
+  }
 }
