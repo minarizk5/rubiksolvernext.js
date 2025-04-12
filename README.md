@@ -1,3 +1,5 @@
+| ![Photo 1](./images/my-photo1.png) | ![Photo 2](./images/my-photo2.png) | ![Photo 3](./images/my-photo3.png) |
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
