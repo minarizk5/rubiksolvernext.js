@@ -5,45 +5,55 @@ interface ColorPickerProps {
   onColorSelect: (color: Color) => void;
 }
 
-const COLORS: { color: Color; gradient: string; label: string }[] = [
-  { color: 'W', gradient: 'bg-gradient-to-br from-white to-gray-100 border-2 border-gray-200', label: 'White' },
-  { color: 'Y', gradient: 'bg-gradient-to-br from-yellow-300 to-yellow-400', label: 'Yellow' },
-  { color: 'R', gradient: 'bg-gradient-to-br from-red-500 to-red-600', label: 'Red' },
-  { color: 'O', gradient: 'bg-gradient-to-br from-orange-400 to-orange-500', label: 'Orange' },
-  { color: 'B', gradient: 'bg-gradient-to-br from-blue-500 to-blue-600', label: 'Blue' },
-  { color: 'G', gradient: 'bg-gradient-to-br from-green-500 to-green-600', label: 'Green' },
+const COLORS: { color: Color; background: string; label: string }[] = [
+  { color: 'W', background: 'bg-cube-white', label: 'White' },
+  { color: 'Y', background: 'bg-cube-yellow', label: 'Yellow' },
+  { color: 'R', background: 'bg-cube-red', label: 'Red' },
+  { color: 'O', background: 'bg-cube-orange', label: 'Orange' },
+  { color: 'B', background: 'bg-cube-blue', label: 'Blue' },
+  { color: 'G', background: 'bg-cube-green', label: 'Green' },
 ];
 
 export default function ColorPicker({ selectedColor, onColorSelect }: ColorPickerProps) {
   return (
-    <div className="bg-secondary p-6 rounded-2xl shadow-lg border border-border">
-      <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center">
-        <span className="mr-2">🎨</span>
-        Select Color
-      </h2>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-        {COLORS.map(({ color, gradient, label }) => (
+    <div className="bg-black p-6 rounded-xl shadow-lg border border-gray-800">
+      <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+          <circle cx="13.5" cy="6.5" r="2.5"/>
+          <circle cx="17.5" cy="10.5" r="2.5"/>
+          <circle cx="8.5" cy="7.5" r="2.5"/>
+          <circle cx="6.5" cy="12.5" r="2.5"/>
+        </svg>
+        Select a Color
+      </h3>
+      
+      <div className="grid grid-cols-3 gap-4">
+        {COLORS.map(({ color, background, label }) => (
           <button
             key={color}
             onClick={() => onColorSelect(color)}
-            className="group relative"
+            className="relative group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-black"
+            aria-label={`Select ${label} color`}
           >
             <div
               className={`
-                w-16 h-16 rounded-xl transition-all duration-200
-                ${gradient}
+                aspect-square rounded-lg transition-all duration-200 
+                ${background} border-2 border-gray-800
                 ${selectedColor === color 
-                  ? 'ring-4 ring-primary ring-offset-2 scale-105' 
-                  : 'hover:scale-105 hover:ring-2 hover:ring-ring hover:ring-offset-1'
-                }
+                  ? 'ring-4 ring-primary ring-offset-4 scale-110 shadow-lg' 
+                  : 'hover:scale-105 hover:shadow-md'}
               `}
-            />
-            <span className={`
-              absolute -bottom-6 left-1/2 transform -translate-x-1/2
-              text-sm font-medium transition-opacity duration-200
-              ${selectedColor === color ? 'text-primary' : 'text-secondary-foreground'}
-              opacity-0 group-hover:opacity-100
-            `}>
+              style={{width: '50px', height: '50px'}}
+            >
+              {selectedColor === color && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <span className="block text-sm font-medium text-center mt-2 text-white">
               {label}
             </span>
           </button>

@@ -1,16 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --primary: #4f46e5;
+  --background: #000000;
+  --foreground: #ffffff;
+  --primary: #6366f1;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #334155;
-  --accent: #e2e8f0;
-  --accent-foreground: #475569;
-  --border: #e2e8f0;
-  --ring: #94a3b8;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --accent: #334155;
+  --accent-foreground: #cbd5e1;
+  --border: #2a2a2a;
+  --ring: #475569;
+  
+  /* Bright colors for cube faces */
+  --cube-red: #ef4444;
+  --cube-blue: #3b82f6; 
+  --cube-green: #22c55e;
+  --cube-orange: #f97316;
+  --cube-yellow: #eab308;
+  --cube-white: #f1f5f9;
 }
 
 @theme inline {
@@ -20,23 +28,82 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --primary: #6366f1;
-    --primary-foreground: #ffffff;
-    --secondary: #1e293b;
-    --secondary-foreground: #e2e8f0;
-    --accent: #334155;
-    --accent-foreground: #cbd5e1;
-    --border: #1e293b;
-    --ring: #475569;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* Modern scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Animation utilities */
+.animate-fade {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Cube face color classes */
+.bg-cube-red {
+  background-color: var(--cube-red);
+}
+
+.bg-cube-blue {
+  background-color: var(--cube-blue);
+}
+
+.bg-cube-green {
+  background-color: var(--cube-green);
+}
+
+.bg-cube-orange {
+  background-color: var(--cube-orange);
+}
+
+.bg-cube-yellow {
+  background-color: var(--cube-yellow);
+}
+
+.bg-cube-white {
+  background-color: var(--cube-white);
+}
+
+/* Make the app feel more native */
+@media (max-width: 768px) {
+  body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  .face-input button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

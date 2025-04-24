@@ -2,25 +2,24 @@ import { useState, useEffect, useCallback } from 'react';
 import { CubeState, Face, Color } from '@/types/cube';
 import ColorPicker from './ColorPicker';
 import { Tooltip } from 'react-tooltip';
+import { CubeSolver } from '@/utils/cubeSolver';
 
 interface CubeInputProps {
+  initialDisplayState: CubeState;
   onSubmit: (state: CubeState) => void;
+  onResetRequest: () => void;
 }
 
-const initialCubeState: CubeState = {
-  U: Array(9).fill('W'),
-  D: Array(9).fill('Y'),
-  L: Array(9).fill('O'),
-  R: Array(9).fill('R'),
-  F: Array(9).fill('G'),
-  B: Array(9).fill('B')
-};
-
-export default function CubeInput({ onSubmit }: CubeInputProps) {
-  const [cubeState, setCubeState] = useState<CubeState>(initialCubeState);
+export default function CubeInput({ initialDisplayState, onSubmit, onResetRequest }: CubeInputProps) {
+  const [cubeState, setCubeState] = useState<CubeState>(initialDisplayState);
   const [selectedColor, setSelectedColor] = useState<Color>('W');
   const [focusedCell, setFocusedCell] = useState<{face: Face, index: number} | null>(null);
-  const [isValid, setIsValid] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCubeState(initialDisplayState);
+    setError(null);
+  }, [initialDisplayState]);
 
   const handleCellClick = useCallback((face: Face, index: number) => {
     setCubeState(prev => ({
@@ -31,6 +30,7 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
         ...prev[face].slice(index + 1)
       ]
     }));
+    setError(null);
   }, [selectedColor]);
 
   const handleColorSelect = (color: Color) => {
@@ -38,12 +38,25 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
   };
 
   const handleSubmit = () => {
-    onSubmit(cubeState);
+    try {
+      if (!CubeSolver.isValidState(cubeState)) {
+        setError("Invalid cube state. Check console for details (e.g., color counts, solvability).");
+        return;
+      }
+      
+      onSubmit(cubeState);
+      setError(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      console.error("Error submitting cube:", errorMessage);
+      setError(errorMessage);
+    }
   };
 
   const handleReset = () => {
-    setCubeState(initialCubeState);
+    onResetRequest();
     setSelectedColor('W');
+    setError(null);
   };
 
   const handleKeyNavigation = useCallback((e: KeyboardEvent) => {
@@ -92,23 +105,14 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
     return () => window.removeEventListener('keydown', handleKeyNavigation);
   }, [handleKeyNavigation]);
 
-  useEffect(() => {
-    const isValidState = 
-      cubeState.U[4] === 'W' &&
-      cubeState.D[4] === 'Y' &&
-      cubeState.F[4] === 'G' &&
-      cubeState.B[4] === 'B' &&
-      cubeState.L[4] === 'O' &&
-      cubeState.R[4] === 'R';
-    
-    setIsValid(isValidState);
-  }, [cubeState]);
-
   const renderFace = (face: Face) => (
-    <div className="face-input">
+    <div className="face-input text-center">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-medium text-foreground">{getFaceName(face)}</h3>
-        <span className="text-sm text-secondary-foreground px-2 py-1 bg-accent rounded-md">
+        <h3 className="text-base font-medium text-foreground flex items-center gap-1.5">
+          <div className={`w-4 h-4 rounded-full ${getColorClasses(cubeState[face][4])}`}></div>
+          {getFaceName(face)}
+        </h3>
+        <span className="text-xs bg-secondary px-2 py-0.5 rounded-md text-secondary-foreground">
           {getFacePosition(face)}
         </span>
       </div>
@@ -120,20 +124,16 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
             onFocus={() => setFocusedCell({ face, index })}
             onBlur={() => setFocusedCell(null)}
             className={`
-              w-14 h-14 rounded-lg transition-all duration-200
-              bg-gradient-to-br relative
+              aspect-square w-12 h-12 sm:w-16 sm:h-16 rounded-md 
+              transition-all duration-200 border-2 border-gray-800
               ${getColorClasses(color)}
-              hover:shadow-lg hover:scale-105
-              focus:outline-none focus:ring-2 focus:ring-primary
-              ${color === selectedColor ? 'ring-2 ring-primary ring-offset-2' : ''}
+              hover:scale-105 hover:shadow-md focus:outline-none
+              ${index === 4 ? 'border-white/30' : ''}
               ${focusedCell?.face === face && focusedCell?.index === index 
-                ? 'ring-4 ring-primary ring-offset-4' 
+                ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-105' 
                 : ''}
-              transform perspective-500 hover:rotate-3
             `}
             aria-label={`${getFaceName(face)} face, position ${index + 1}, current color: ${color}`}
-            data-tooltip-id="cube-cell-tooltip"
-            data-tooltip-content={`Position ${index + 1} (${getFacePosition(face)})`}
             tabIndex={0}
           />
         ))}
@@ -142,35 +142,33 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ColorPicker selectedColor={selectedColor} onColorSelect={handleColorSelect} />
       
-      <div className={`
-        bg-secondary p-6 rounded-2xl shadow-lg border transition-all duration-300
-        ${isValid ? 'border-border hover:shadow-xl' : 'border-red-500'}
-      `}>
-        {!isValid && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg flex items-center gap-2">
-            <span role="img" aria-label="Warning">⚠️</span>
-            <p>Center pieces must match standard configuration</p>
+      <div className="bg-black p-5 rounded-xl border border-gray-800 transition-all duration-300">
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 text-red-400 rounded-lg flex items-center gap-2 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <path d="M12 9v4"/>
+              <path d="M12 17h.01"/>
+            </svg>
+            <p>{error}</p>
           </div>
         )}
         
-        <div className="grid gap-8">
-          {/* Top face */}
+        <div className="grid gap-6">
           <div className="flex justify-center">
             {renderFace('U')}
           </div>
           
-          {/* Middle row */}
-          <div className="grid grid-cols-4 gap-8 place-items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 place-items-center">
             {renderFace('L')}
             {renderFace('F')}
             {renderFace('R')}
             {renderFace('B')}
           </div>
           
-          {/* Bottom face */}
           <div className="flex justify-center">
             {renderFace('D')}
           </div>
@@ -179,52 +177,39 @@ export default function CubeInput({ onSubmit }: CubeInputProps) {
         <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
           <button
             onClick={handleReset}
-            className="px-6 py-3 bg-accent text-accent-foreground rounded-lg 
-                     hover:bg-accent/80 transition-all duration-300 font-medium
-                     flex items-center justify-center gap-2
-                     hover:shadow-md active:scale-95"
+            type="button"
+            className="px-6 py-3 bg-secondary hover:bg-secondary/80 text-white rounded-lg 
+                     transition-all duration-200 text-base font-medium
+                     flex items-center justify-center gap-2"
+            aria-label="Reset cube to default state"
           >
-            <span role="img" aria-label="Reset">🔄</span>
-            Reset Cube
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+            Reset
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!isValid}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg 
-                     transition-all duration-300 font-medium
-                     flex items-center justify-center gap-2
-                     hover:shadow-md active:scale-95
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     disabled:hover:shadow-none disabled:active:scale-100"
+            type="button"
+            className="px-6 py-3 bg-primary text-white rounded-lg 
+                     transition-all duration-200 text-base font-medium
+                     flex items-center justify-center gap-2"
+            aria-label="Solve the cube with current configuration"
           >
-            <span role="img" aria-label="Start">▶️</span>
-            Start Solving
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+            </svg>
+            Solve Cube
           </button>
         </div>
-
-        <div className="mt-6 p-4 bg-accent/30 rounded-lg">
-          <h4 className="font-medium text-foreground mb-2">Keyboard Controls:</h4>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-secondary-foreground">
-            <li>⬆️ ⬇️ ⬅️ ➡️ - Navigate cells</li>
-            <li>Space/Enter - Apply selected color</li>
-            <li>1-6 - Quick select colors</li>
-            <li>Tab - Move between faces</li>
-          </ul>
-        </div>
       </div>
-
-      <Tooltip
-        id="cube-cell-tooltip"
-        place="top"
-        className="z-50 !bg-foreground/90 !px-3 !py-2 !rounded-lg !text-sm !shadow-xl"
-        classNameArrow="!bg-foreground/90"
-      />
     </div>
   );
 }
 
 function getFaceName(face: Face): string {
-  const names: Record<Face, string> = {
+  const faceNames = {
     U: 'Top',
     D: 'Bottom',
     L: 'Left',
@@ -232,29 +217,30 @@ function getFaceName(face: Face): string {
     F: 'Front',
     B: 'Back'
   };
-  return names[face];
+  return faceNames[face];
 }
 
 function getFacePosition(face: Face): string {
-  const positions: Record<Face, string> = {
-    U: 'Upper',
-    D: 'Lower',
-    L: 'Left Side',
-    R: 'Right Side',
-    F: 'Front Side',
-    B: 'Back Side'
+  const facePositions = {
+    U: 'Top',
+    D: 'Bottom',
+    L: 'Left',
+    R: 'Right',
+    F: 'Front',
+    B: 'Back'
   };
-  return positions[face];
+  return facePositions[face];
 }
 
 function getColorClasses(color: string): string {
-  const classes: Record<string, string> = {
-    'W': 'from-white to-gray-100 border-2 border-gray-200',
-    'Y': 'from-yellow-300 to-yellow-400',
-    'R': 'from-red-500 to-red-600',
-    'O': 'from-orange-400 to-orange-500',
-    'B': 'from-blue-500 to-blue-600',
-    'G': 'from-green-500 to-green-600'
+  const colorClasses = {
+    'W': 'bg-cube-white',
+    'Y': 'bg-cube-yellow',
+    'R': 'bg-cube-red',
+    'O': 'bg-cube-orange',
+    'B': 'bg-cube-blue',
+    'G': 'bg-cube-green'
   };
-  return classes[color] || '';
+  
+  return colorClasses[color as keyof typeof colorClasses] || '';
 }
