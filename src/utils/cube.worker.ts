@@ -2,10 +2,10 @@
 // This file will be loaded as a static worker
 
 // Define worker context type for TypeScript
-const ctx: Worker = self as any;
+const ctx: Worker = self as unknown as Worker;
 
 // Set up the onmessage handler
-ctx.onmessage = function(e) {
+ctx.onmessage = function() {
   try {
     // Create a string-based implementation of the solve function
     // This is a simplified version that won't be as efficient as the full library
@@ -28,11 +28,11 @@ ctx.onmessage = function(e) {
         solution: mockSolution
       });
     }, 1500); // Simulate a 1.5 second calculation time
-  } catch (error: any) {
+  } catch (error) {
     ctx.postMessage({ 
       type: 'error',
       success: false, 
-      error: error.message || 'Unknown error in worker'
+      error: error instanceof Error ? error.message : 'Unknown error in worker'
     });
   }
 };

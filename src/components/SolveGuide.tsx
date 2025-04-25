@@ -192,7 +192,6 @@ export default function SolveGuide({ solutionMoves, isLoading, error }: SolveGui
                                  <h4 className="text-primary font-medium mb-2">{group.description}</h4>
                                  <div className="space-y-2">
                                    {group.moves.map((move, moveIndex) => {
-                                     const face = move.charAt(0);
                                      const instruction = friendlyInstructions.find(i => i.move === move);
                                      return (
                                        <div key={moveIndex} className="border-l-2 border-gray-700 pl-3 py-1">
@@ -212,7 +211,7 @@ export default function SolveGuide({ solutionMoves, isLoading, error }: SolveGui
                              ))}
                              
                              <p className="text-xs text-gray-500 mt-2">
-                               Tip: You can switch to "Standard Notation" above if you're comfortable with cube notation.
+                               Tip: You can switch to &quot;Standard Notation&quot; above if you&apos;re comfortable with cube notation.
                              </p>
                            </div>
                          ) : (

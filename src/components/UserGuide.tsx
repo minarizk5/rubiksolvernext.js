@@ -108,7 +108,7 @@ export default function UserGuide({ onTestSolve }: UserGuideProps) {
             <div className="bg-gray-900 p-3 rounded-md text-sm mt-2 overflow-x-auto">
               <code>
                 <span className="text-primary">U</span>: Top face clockwise • 
-                <span className="text-primary"> U'</span>: Top face counter-clockwise • 
+                <span className="text-primary"> U&apos;</span>: Top face counter-clockwise • 
                 <span className="text-primary"> U2</span>: Top face twice
                 <br />
                 <span className="text-primary">R</span>: Right face clockwise • 

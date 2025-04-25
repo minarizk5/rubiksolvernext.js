@@ -62,7 +62,7 @@ function groupMovesIntoPhases(moves: Move[]): SolutionStep[] {
         phase: PHASES[currentPhase].name,
         moves: [...currentMoves],
         description: PHASES[currentPhase].description,
-        tips: getPhaseSpecificTips(PHASES[currentPhase].id, currentMoves)
+        tips: getPhaseSpecificTips(PHASES[currentPhase].id)
       });
       currentMoves = [];
       moveCount = 0;
@@ -97,7 +97,7 @@ function isYellowCrossComplete(moves: Move[]): boolean {
   return pattern.includes('F R U R\' U\' F\'');
 }
 
-function getPhaseSpecificTips(phaseId: string, moves: Move[]): string[] {
+function getPhaseSpecificTips(phaseId: string): string[] {
   const tips: Record<string, string[]> = {
     'white-cross': [
       'Look for white edge pieces',

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CubeState, Face, Color } from '@/types/cube';
 import ColorPicker from './ColorPicker';
-import { Tooltip } from 'react-tooltip';
 import { CubeSolver } from '@/utils/cubeSolver';
 
 interface CubeInputProps {

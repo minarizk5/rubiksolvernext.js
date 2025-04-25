@@ -91,7 +91,7 @@ export default function Home() {
          }
       } else if (moves.length > 0) {
          console.log(`Solution found with ${moves.length} moves.`);
-         setSolutionMoves(moves);
+         setSolutionMoves(moves as Move[]);
       } else {
          // This case might occur if isValidState failed subtly after constructor?
          console.error("Solver returned empty moves, state might be invalid despite checks.");
