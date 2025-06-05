@@ -261,10 +261,10 @@ export class CubeSolver {
         this.solveWithTimeSlicing(resolve, reject);
       }
       
-      // Set a maximum timeout to prevent infinite loops (30 seconds)
+      // Set a maximum timeout to prevent infinite loops (60 seconds)
       setTimeout(() => {
-        reject(new Error("Solving timed out after 30 seconds. The cube may be too complex or in an invalid state."));
-      }, 30000);
+        reject(new Error("Solving timed out after 60 seconds. The cube may be too complex or in an invalid state."));
+      }, 60000);
     });
   }
   
