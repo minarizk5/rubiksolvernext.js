@@ -96,6 +96,11 @@ export class CubeSolver {
   static async initializeSolver(): Promise<void> {
     if (CubeSolver.solverInitialized || CubeSolver.solverInitializing) return;
 
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      throw new Error("Cube solver can only be initialized in a browser environment");
+    }
+
     console.log("Initializing Kociemba solver tables...");
     CubeSolver.solverInitializing = true;
     
@@ -252,6 +257,12 @@ export class CubeSolver {
     return new Promise<string[]>((resolve, reject) => {
       console.log("Starting solution calculation...");
       
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined') {
+        reject(new Error("Cube solving is only supported in a browser environment"));
+        return;
+      }
+      
       // Check if Web Workers are available (modern browsers)
       if (typeof Worker !== 'undefined') {
         // Use a worker to offload the calculation entirely
@@ -261,10 +272,10 @@ export class CubeSolver {
         this.solveWithTimeSlicing(resolve, reject);
       }
       
-      // Set a maximum timeout to prevent infinite loops (60 seconds)
+      // Set a maximum timeout to prevent infinite loops (30 seconds)
       setTimeout(() => {
-        reject(new Error("Solving timed out after 60 seconds. The cube may be too complex or in an invalid state."));
-      }, 60000);
+        reject(new Error("Solving timed out after 30 seconds. The cube may be too complex or in an invalid state."));
+      }, 30000);
     });
   }
   

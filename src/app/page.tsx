@@ -35,6 +35,9 @@ export default function Home() {
 
   // --- Proactive Solver Initialization --- 
   useEffect(() => {
+    // Only initialize in browser environment
+    if (typeof window === 'undefined') return;
+
     // Use the new public static getters
     if (!CubeSolver.isEngineInitialized() && !CubeSolver.isEngineInitializing()) {
         console.log("Home component mounted, initializing solver engine...");
@@ -43,7 +46,7 @@ export default function Home() {
             setIsSolverEngineReady(true);
         }).catch(err => {
             console.error("Solver engine initialization failed:", err);
-            setError("Critical error: Could not initialize the cube solving engine.");
+            setError("Critical error: Could not initialize the cube solving engine. Please try again in a browser environment.");
         });
     } else if (CubeSolver.isEngineInitializing()) {
         console.log("Solver engine is already initializing, waiting...");
@@ -54,16 +57,22 @@ export default function Home() {
                 clearInterval(checkInterval);
             } else if (!CubeSolver.isEngineInitializing()) {
                  console.error("Detected solver engine initialization failed elsewhere.");
-                 setError("Critical error: Could not initialize the cube solving engine.");
+                 setError("Critical error: Could not initialize the cube solving engine. Please try again in a browser environment.");
                  clearInterval(checkInterval);
             }
         }, 200);
         return () => clearInterval(checkInterval);
     }
-  }, []); 
+  }, []);
 
   // Triggered by CubeInput onSubmit or handleTestSolve
   const handleCubeInput = async (state: CubeState) => {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      setError("Cube solving is only supported in a browser environment");
+      return;
+    }
+
     setError(null); // Clear previous creation errors
     setSolveError(null);
     setSolutionMoves(null);
@@ -73,7 +82,6 @@ export default function Home() {
     try {
       // Create the solver instance - validation happens inside constructor
       const newSolver = new CubeSolver(state);
-      // setSolver(newSolver); // Store solver instance if needed elsewhere
 
       // --- Automatically trigger solve --- 
       console.log("Solver created, attempting to solve...");
@@ -98,8 +106,6 @@ export default function Home() {
          setSolveError("Could not solve the cube. State might be invalid.");
          setSolutionMoves(null);
       }
-      // --- Solve attempt finished --- 
-
     } catch (err) {
       // Errors from CubeSolver constructor (validation) or newSolver.solve()
       console.error("Error during cube processing or solving:", err);
@@ -107,7 +113,6 @@ export default function Home() {
       setError(message); // Show error at the top level
       setSolutionMoves(null);
       setSolveError(null);
-      // setSolver(null);
     } finally {
        setIsLoadingSolution(false); // Stop loading indicator
     }
