@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone',
   webpack: (config) => {
     // Support Web Workers with a more modern approach
     config.module.rules.push({
